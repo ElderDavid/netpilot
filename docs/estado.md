@@ -17,7 +17,7 @@
 |---|---|---|---|---|---|
 | 1 | Adaptadores MikroTik/OpenWrt + bloqueo | OpenCode | **hecho** (sin hardware) | `main` | `agent/adapters.mjs`, `agent/index.mjs`, `public/app.js` |
 | 2 | Servicio Windows + bandeja + instalador | Claude | pendiente | `feat/windows-service` | `service/*`, `docs/instalacion.md` |
-| 3 | App Android nativa | Claude | **hecho** (no compilado con SDK) | `feat/android` | `android/*` |
+| 3 | App Android nativa | Claude | **hecho** (compila; sin probar en teléfono) | `feat/android` | `android/*` |
 | 4 | Historial y comparación | OpenCode | **hecho** | `main` | `public/app.js`, `agent/store.mjs`, `agent/index.mjs` |
 | 4.5 | Servidor MCP | OpenCode | pendiente | `feat/mcp` | `mcp/*`, `docs/mcp.md` |
 
@@ -77,6 +77,12 @@ Estados: `pendiente` · `en curso` · `bloqueado` · `hecho`
 - Probado aquí: kotlinc 2.0.21 (el de la distribución de Gradle) compila las clases JVM puras (`core/` sin Android + pruebas); **19/19 pruebas JUnit OK**. Fixture `bootstrap.json` contrastada con las claves reales de `/api/bootstrap`. Prueba de humo del cliente contra el agente real: bootstrap OK, trabajo DNS hasta `done`, 404 y puerto cerrado con mensaje claro, búsqueda encuentra el agente.
 - **No probado:** `./gradlew assembleDebug` (no hay SDK de Android), pantallas Compose, `LocalProbe`, permisos y ejecución en un teléfono. Lista en `android/README.md` § «Qué falta verificar».
 
+### 2026-11-22 — Tarea 3: compilación con SDK (Claude)
+- SDK de Android instalado en el entorno de Claude (Platform 35, Build-Tools 35.0.0, JDK 21; licencias aceptadas con autorización del usuario).
+- `./gradlew assembleDebug testDebugUnitTest lintDebug` → **OK**: `app-debug.apk` (~10 MB), 19/19 pruebas, Lint sin errores (avisos explicados en `android/README.md`).
+- Ajustes de Lint: icono monocromo (Android 13+) y `dataExtractionRules` sin copia en la nube.
+- **No probado:** ejecución. No hay emulador (falta KVM). Falta instalarla en un teléfono real.
+
 ### 2026-11-22 — Observaciones en `agent/` para OpenCode (Claude, sin tocar código)
 - `/api/bootstrap` entrega MAC completas: `system.interfaces[].mac`, `network.gatewayMac`, `state.devices[].mac` y `.key`. `/api/wifi` y `state.wifi` entregan BSSID completos. Choca con la regla 1 si se considera la API como «mensaje»; la app Android los ignora, la PWA convendría revisarla.
 - `speed.mjs` `stats()`: el jitter se calcula sobre las muestras **ordenadas**, lo que da (máx − mín)/(n − 1), no la variación entre muestras consecutivas.
@@ -85,7 +91,7 @@ Estados: `pendiente` · `en curso` · `bloqueado` · `hecho`
 ## Pendientes de verificación
 
 - Adaptadores MikroTik/OpenWrt: **sin hardware de prueba**. Marcar "no verificado en hardware" hasta conectar un equipo real.
-- App Android: **no compilado aquí** (sin SDK). Ejecutar `cd android && ./gradlew assembleDebug testDebugUnitTest` y probar en Android 8 y 13+.
+- App Android: compila y pasa pruebas/Lint; **falta ejecutarla** en un teléfono (Android 8 y 13+): permisos, SSID, escaneo, conexión al agente y pruebas.
 - Servicio Windows: probar logoff/logon y desinstalación.
 
 ## Cómo verificar el estado actual

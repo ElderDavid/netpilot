@@ -3,10 +3,11 @@
 Cliente nativo (Kotlin + Jetpack Compose + Material 3) del agente NetPilot. Lee la API local del
 agente y, sin agente, muestra solo lo que Android permite medir desde el teléfono.
 
-> **Estado: no compilado aquí.** El proyecto se escribió en un entorno sin SDK de Android: no se ha
-> ejecutado `assembleDebug`, ni las pruebas unitarias, ni la app en un dispositivo. Las versiones de
-> plugins y librerías se comprobaron en Maven (2026-11-22) y la forma del JSON se contrastó con la
-> respuesta real de `/api/bootstrap`. Ver «Qué falta verificar».
+> **Estado: compila; no probado en un dispositivo.** El 2026-11-22, en Linux con JDK 21, SDK
+> Platform 35 y Build-Tools 35.0.0: `./gradlew assembleDebug testDebugUnitTest lintDebug` termina
+> sin errores (APK debug de ~10 MB, 19/19 pruebas JVM, Lint sin errores). No se pudo ejecutar en un
+> emulador porque el entorno no tiene KVM, así que **pantallas, permisos y uso real en un teléfono
+> siguen sin verificar**. Ver «Qué falta verificar».
 
 ## Requisitos para compilar
 
@@ -83,10 +84,13 @@ y kotlinx-coroutines. HTTP con `HttpURLConnection` y JSON con `org.json` de la p
   Escaneo y velocidad se sondean cada 1 s hasta 3 min. Los errores se muestran en pantalla; si un
   refresco falla, se conservan los últimos datos y se indica su antigüedad.
 - El agente expone `GET /api/events` (SSE), que la app no usa todavía: refresca bajo demanda.
+- Avisos de Lint que se dejan a propósito: `InsecureBaseConfiguration` (texto plano hacia la LAN,
+  explicado arriba), `GradleDependency` (hay versiones más nuevas; se fijaron las verificadas) y
+  `ObsoleteSdkInt` en `mipmap-anydpi-v26` (sin el `-v26` aapt2 no encuentra el icono adaptativo).
 
 ## Qué falta verificar
 
-1. `./gradlew assembleDebug` y `./gradlew testDebugUnitTest` en una máquina con SDK.
+1. Instalar el APK en un teléfono (`./gradlew installDebug`) y recorrer todas las pantallas.
 2. En un teléfono Android 8 (API 26) y uno 13+ (API 33+): permisos de ubicación/dispositivos Wi-Fi
    cercanos, SSID visible y escaneo.
 3. Conexión a un agente real por IP y por «Buscar»; trabajos de escaneo, latencia, DNS y velocidad.
