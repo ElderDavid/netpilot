@@ -8,6 +8,7 @@ const state = {
   busy: {},
   activeJob: null,
   wifiBand: null,
+  historySel: { a: 'current', b: 'current' },
 };
 
 const TYPE_ICON = {
@@ -136,6 +137,7 @@ function render() {
     case 'devices': view.innerHTML = viewDevices(); bindDevices(); break;
     case 'wifi': view.innerHTML = viewWifi(); bindWifi(); break;
     case 'tests': view.innerHTML = viewTests(); bindTests(); break;
+    case 'history': view.innerHTML = viewHistory(); bindHistory(); break;
     case 'router': view.innerHTML = viewRouter(); bindRouter(); break;
     default: view.innerHTML = viewOverview(); bindOverview();
   }
@@ -621,6 +623,207 @@ async function runTest(kind, label) {
     state.busy[kind] = false;
     render();
   }
+}
+
+/* ---------------- history ---------------- */
+
+function svgLines(series, { unit = '', height = 150 } = {}) {
+  const points = series.flatMap((s) => s.points || []);
+  if (!points.length) return '<div class="empty">Sin datos todavía. Ejecuta una prueba o guarda un estado.</div>';
+  const W = 520, H = height, P = { l: 42, r: 10, t: 12, b: 22 };
+  const xs = points.map((p) => +new Date(p.t));
+  const ys = points.map((p) => p.v);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  let minY = Math.min(...ys), maxY = Math.max(...ys);
+  if (minY === maxY) { minY = Math.max(0, minY - 1); maxY += 1; }
+  const spanX = maxX - minX || 1;
+  const sx = (t) => P.l + ((+new Date(t) - minX) / spanX) * (W - P.l - P.r);
+  const sy = (v) => P.t + (1 - (v - minY) / (maxY - minY || 1)) * (H - P.t - P.b);
+  const grid = [0, 0.5, 1].map((f) => {
+    const y = P.t + f * (H - P.t - P.b);
+    const val = maxY - (maxY - minY) * f;
+    return `<line x1="${P.l}" y1="${y.toFixed(1)}" x2="${W - P.r}" y2="${y.toFixed(1)}" stroke="#1e2a36" stroke-width="1"/>` +
+      `<text x="4" y="${(y + 4).toFixed(1)}" fill="#64748b" font-size="10">${Math.round(val * 10) / 10}</text>`;
+  }).join('');
+  const paths = series.map((s) => {
+    const pts = [...(s.points || [])].sort((a, b) => +new Date(a.t) - +new Date(b.t));
+    if (!pts.length) return '';
+    const d = pts.map((p, i) => `${i ? 'L' : 'M'}${sx(p.t).toFixed(1)},${sy(p.v).toFixed(1)}`).join(' ');
+    const last = pts[pts.length - 1];
+    return `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>` +
+      `<circle cx="${sx(last.t).toFixed(1)}" cy="${sy(last.v).toFixed(1)}" r="3" fill="${s.color}"/>`;
+  }).join('');
+  const t0 = new Date(minX).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
+  const t1 = new Date(maxX).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img">
+    ${grid}${paths}
+    <text x="${P.l}" y="${H - 4}" fill="#64748b" font-size="10">${t0}</text>
+    <text x="${W - P.r}" y="${H - 4}" text-anchor="end" fill="#64748b" font-size="10">${t1}</text>
+    ${unit ? `<text x="${W - P.r}" y="${P.t + 8}" text-anchor="end" fill="#64748b" font-size="10">${esc(unit)}</text>` : ''}
+  </svg>`;
+}
+
+function legend(series) {
+  return `<div class="bars-legend">${series.map((s) => `<span><i class="legend-dot" style="background:${s.color}"></i>${esc(s.name)}</span>`).join('')}</div>`;
+}
+
+function compareMetrics(a, b) {
+  const rows = [];
+  const add = (label, unit, av, bv, better, digits = 1) => {
+    if (av == null && bv == null) return;
+    let verdict = 'sin datos';
+    let d = null;
+    if (av != null && bv != null) {
+      d = bv - av;
+      const rel = Math.abs(d) / (Math.abs(av) || 1);
+      if (rel < 0.05 || better === 'neutral') verdict = 'igual';
+      else verdict = (better === 'lower' ? d < 0 : d > 0) ? 'mejor' : 'peor';
+    }
+    rows.push({ label, unit, a: av, b: bv, d, verdict, digits });
+  };
+  add('Latencia p50', 'ms', a?.latency?.p50, b?.latency?.p50, 'lower');
+  add('Latencia p95', 'ms', a?.latency?.p95, b?.latency?.p95, 'lower');
+  add('Pérdida', '%', a?.latency?.loss, b?.latency?.loss, 'lower');
+  add('Jitter', 'ms', a?.latency?.jitter, b?.latency?.jitter, 'lower');
+  add('Internet p50', 'ms', a?.latency?.inet, b?.latency?.inet, 'lower');
+  add('Bajada', 'Mbps', a?.speed?.down, b?.speed?.down, 'higher');
+  add('Subida', 'Mbps', a?.speed?.up, b?.speed?.up, 'higher');
+  add('Bufferbloat', 'ms', a?.speed?.bufferbloat, b?.speed?.bufferbloat, 'lower');
+  add('Señal', 'dBm', a?.wifi?.rssi, b?.wifi?.rssi, 'higher');
+  add('PHY', 'Mbps', a?.wifi?.phy, b?.wifi?.phy, 'higher');
+  add('Equipos en línea', '', a?.devices?.online, b?.devices?.online, 'neutral', 0);
+  return rows;
+}
+
+function cmpRow(r) {
+  const fmt = (v) => (v == null ? '—' : `${num(v, r.digits)}${r.unit ? ' ' + r.unit : ''}`);
+  const cls = r.verdict === 'mejor' ? 'ok' : r.verdict === 'peor' ? 'bad' : '';
+  const delta = r.d == null ? '—' : `${r.d > 0 ? '+' : ''}${num(r.d, r.digits)}${r.unit ? ' ' + r.unit : ''}`;
+  return `<tr>
+    <td>${esc(r.label)}</td>
+    <td class="mono">${fmt(r.a)}</td>
+    <td class="mono">${fmt(r.b)}</td>
+    <td class="mono">${delta}</td>
+    <td><span class="badge ${cls}">${esc(r.verdict)}</span></td>
+  </tr>`;
+}
+
+function viewHistory() {
+  const st = state.data.state;
+  const tests = st.tests || {};
+  const snaps = st.snapshots || [];
+  const cur = state.data.current || state.data.state.current || null;
+  const sel = { ...state.historySel };
+  if (!snaps.some((s) => s.id === sel.b) && sel.b !== 'current') sel.b = snaps[0]?.id || 'current';
+  if (sel.a === sel.b && snaps.length) sel.b = snaps[0].id;
+  const byId = (id) => (id === 'current' ? cur : snaps.find((s) => s.id === id)?.metrics) || null;
+  const A = byId(sel.a);
+  const B = byId(sel.b);
+  const rows = compareMetrics(A, B);
+  const better = rows.filter((r) => r.verdict === 'mejor').length;
+  const worse = rows.filter((r) => r.verdict === 'peor').length;
+
+  const latSeries = [{ name: 'p50', color: '#2dd4bf', points: (tests.latency || []).map((x) => ({ t: x.at, v: x.gateway?.p50 })).filter((p) => p.v != null) }];
+  const lossSeries = [{ name: 'pérdida', color: '#f87171', points: (tests.latency || []).map((x) => ({ t: x.at, v: x.gateway?.lossPct })).filter((p) => p.v != null) }];
+  const speedSeries = [
+    { name: 'Bajada', color: '#38bdf8', points: (tests.speed || []).map((x) => ({ t: x.at, v: x.downloadMbps })).filter((p) => p.v != null) },
+    { name: 'Subida', color: '#fbbf24', points: (tests.speed || []).map((x) => ({ t: x.at, v: x.uploadMbps })).filter((p) => p.v != null) },
+  ];
+  const devSeries = [{ name: 'equipos', color: '#34d399', points: (st.scans || []).map((x) => ({ t: x.at, v: x.online })).filter((p) => p.v != null) }];
+
+  return `
+  <div class="section-head"><h2>Historial</h2><p>Mediciones locales y estados guardados</p></div>
+  <div class="toolbar">
+    <input class="input" id="snap-label" placeholder="Etiqueta (ej. antes de cablear)" />
+    <button class="btn primary small" id="snap-save">Guardar estado actual</button>
+    <div class="spacer"></div>
+    <a class="btn small" href="/api/export?format=csv" download>Exportar CSV</a>
+    <a class="btn small" href="/api/export?format=json" download>Exportar JSON</a>
+  </div>
+
+  <div class="grid cols-2 section">
+    <div class="card"><div class="card-head"><div class="card-title">Latencia al router (p50)</div><span class="badge">ms</span></div><div class="card-body">${svgLines(latSeries, { unit: 'ms' })}</div></div>
+    <div class="card"><div class="card-head"><div class="card-title">Velocidad</div><span class="badge">Mbps</span></div><div class="card-body">${svgLines(speedSeries)}${legend(speedSeries)}</div></div>
+    <div class="card"><div class="card-head"><div class="card-title">Pérdida de paquetes</div><span class="badge">%</span></div><div class="card-body">${svgLines(lossSeries, { unit: '%' })}</div></div>
+    <div class="card"><div class="card-head"><div class="card-title">Equipos en línea</div><span class="badge">por escaneo</span></div><div class="card-body">${svgLines(devSeries)}</div></div>
+  </div>
+
+  <div class="section-head"><h2>Comparar</h2><p>${A && B ? `${better} mejor · ${worse} peor · ${rows.length - better - worse} igual o sin datos` : 'Elige dos estados'}</p></div>
+  <div class="toolbar">
+    <select class="select" id="cmp-a">${cmpOptions(sel.a, snaps)}</select>
+    <span class="note">vs</span>
+    <select class="select" id="cmp-b">${cmpOptions(sel.b, snaps)}</select>
+  </div>
+  <div class="table-wrap section">
+    <table class="data">
+      <thead><tr><th>Métrica</th><th>Antes</th><th>Después</th><th>Cambio</th><th>Veredicto</th></tr></thead>
+      <tbody>${rows.map(cmpRow).join('') || `<tr><td colspan="5"><div class="empty">Sin datos comparables. Guarda dos estados con mediciones.</div></td></tr>`}</tbody>
+    </table>
+  </div>
+
+  <div class="section-head"><h2>Estados guardados</h2><p>${snaps.length} de 50 · solo local</p></div>
+  <div class="table-wrap">
+    <table class="data">
+      <thead><tr><th>Etiqueta</th><th>Fecha</th><th>Latencia</th><th>Bajada</th><th>Señal</th><th></th></tr></thead>
+      <tbody>${snaps.map(snapRow).join('') || `<tr><td colspan="6"><div class="empty">Aún no has guardado estados. Pulsa «Guardar estado actual».</div></td></tr>`}</tbody>
+    </table>
+  </div>
+  <p class="note" style="margin-top:10px">Un estado guarda la última medición de latencia, velocidad, DNS, señal y equipos. Úsalo antes y después de un cambio físico (por ejemplo, cablear el nodo) para comparar con datos.</p>`;
+}
+
+function cmpOptions(selected, snaps) {
+  return [`<option value="current" ${selected === 'current' ? 'selected' : ''}>Medición actual</option>`]
+    .concat(snaps.map((s) => `<option value="${s.id}" ${selected === s.id ? 'selected' : ''}>${esc(s.label)} · ${clock(s.at)}</option>`))
+    .join('');
+}
+
+function snapRow(s) {
+  const m = s.metrics || {};
+  return `<tr>
+    <td><div class="cell-main">${esc(s.label)}</div>${s.note ? `<div class="cell-sub">${esc(s.note)}</div>` : ''}</td>
+    <td class="cell-sub">${clock(s.at)}</td>
+    <td class="mono">${m.latency?.p50 != null ? num(m.latency.p50, 1) + ' ms' : '—'}</td>
+    <td class="mono">${m.speed?.down != null ? num(m.speed.down, 1) + ' Mbps' : '—'}</td>
+    <td class="mono">${m.wifi?.rssi != null ? m.wifi.rssi + ' dBm' : '—'}</td>
+    <td style="white-space:nowrap">
+      <button class="btn ghost small" data-cmp="a" data-id="${s.id}" title="Usar como antes">A</button>
+      <button class="btn ghost small" data-cmp="b" data-id="${s.id}" title="Usar como después">B</button>
+      <button class="btn ghost small" data-del="${s.id}" title="Borrar">✕</button>
+    </td>
+  </tr>`;
+}
+
+function bindHistory() {
+  $('#snap-save')?.addEventListener('click', async () => {
+    const btn = $('#snap-save');
+    const label = $('#snap-label').value.trim();
+    btn.disabled = true;
+    btn.textContent = 'Guardando…';
+    try {
+      const snap = await api('/api/snapshots', { method: 'POST', body: JSON.stringify({ label }) });
+      state.historySel.b = snap.id;
+      await refresh();
+      toast('Estado guardado', snap.label);
+    } catch (e) {
+      toast('No se pudo guardar', e.message);
+      btn.disabled = false;
+      btn.textContent = 'Guardar estado actual';
+    }
+  });
+  $('#cmp-a')?.addEventListener('change', (e) => { state.historySel.a = e.target.value; render(); });
+  $('#cmp-b')?.addEventListener('change', (e) => { state.historySel.b = e.target.value; render(); });
+  $$('#view [data-cmp]').forEach((b) => b.addEventListener('click', () => {
+    state.historySel[b.dataset.cmp] = b.dataset.id;
+    render();
+  }));
+  $$('#view [data-del]').forEach((b) => b.addEventListener('click', async () => {
+    if (!confirm('¿Borrar este estado guardado?')) return;
+    try {
+      await api(`/api/snapshots/${b.dataset.del}`, { method: 'DELETE' });
+      await refresh();
+      toast('Estado borrado');
+    } catch (e) { toast('No se pudo borrar', e.message); }
+  }));
 }
 
 /* ---------------- router ---------------- */

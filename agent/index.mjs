@@ -132,6 +132,87 @@ async function runScan({ reason = 'manual' } = {}) {
 
 function fetchRoute(payload) { broadcast(payload.type, payload); }
 
+function currentMetrics() {
+  const t = store.state.tests;
+  const lat = t.latency[0] || null;
+  const sp = t.speed[0] || null;
+  const dns = t.dns[0] || null;
+  const wifi = store.state.wifi;
+  const list = store.devices();
+  return {
+    at: new Date().toISOString(),
+    latency: lat ? { p50: lat.gateway?.p50 ?? null, p95: lat.gateway?.p95 ?? null, loss: lat.gateway?.lossPct ?? null, jitter: lat.gateway?.jitter ?? null, inet: lat.internet?.p50 ?? null } : null,
+    speed: sp ? { down: sp.downloadMbps ?? null, up: sp.uploadMbps ?? null, idle: sp.idleLatency ?? null, loaded: sp.loadedLatency ?? null, bufferbloat: sp.bufferbloatMs ?? null } : null,
+    dns: dns ? { system: dns.system?.p50 ?? null, public: dns.public?.p50 ?? null } : null,
+    wifi: wifi?.link ? { rssi: wifi.link.rssi ?? null, band: wifi.link.band || null, channel: wifi.link.channel ?? null, phy: wifi.link.rxMbps ?? null } : null,
+    devices: { online: list.filter((d) => d.online).length, total: list.length },
+    router: store.state.router?.gateway ? { family: store.state.router.gateway.family || null, label: store.state.router.gateway.familyLabel || null } : null,
+  };
+}
+
+function maskBssid(b) {
+  if (!b) return null;
+  const p = String(b).split(':');
+  return p.length >= 3 ? `${p.slice(0, 3).join(':')}:··:··:··` : b;
+}
+
+function exportPayload() {
+  const s = store.state;
+  return {
+    app: 'NetPilot',
+    version: '0.1.0',
+    exportedAt: new Date().toISOString(),
+    network: s.network ? {
+      iface: s.network.iface, ip: s.network.ip, prefix: s.network.prefix, subnet: s.network.subnet,
+      gateway: s.network.gateway, gatewayMacMasked: s.network.gatewayMacMasked, gatewayVendor: s.network.gatewayVendor,
+    } : null,
+    devices: store.devices().map((d) => ({
+      id: d.id, ip: d.ip, ips: d.ips, macMasked: d.macMasked, name: d.name, vendor: d.vendor,
+      type: d.type, typeLabel: d.typeLabel, confidence: d.confidence,
+      firstSeen: d.firstSeen, lastSeen: d.lastSeen, online: d.online, ttl: d.ttl, method: d.method, reasons: d.reasons,
+    })),
+    wifi: s.wifi ? {
+      at: s.wifi.at,
+      link: { ...s.wifi.link, bssid: maskBssid(s.wifi.link?.bssid) },
+      networks: (s.wifi.networks || []).map((n) => ({ ssid: n.ssid, bssid: maskBssid(n.bssid), band: n.band, channel: n.channel, signalPct: n.signalPct, radio: n.radio })),
+      recommendation: s.wifi.recommendation,
+    } : null,
+    router: s.router,
+    tests: s.tests,
+    scans: s.scans,
+    snapshots: s.snapshots,
+    events: s.events,
+  };
+}
+
+function csvCell(v) {
+  const s = v == null ? '' : String(v);
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function csvPayload() {
+  const rows = [['at', 'kind', 'metric', 'value', 'unit']];
+  for (const t of store.state.tests.latency) {
+    rows.push([t.at, 'latency', 'router_p50', t.gateway?.p50, 'ms']);
+    rows.push([t.at, 'latency', 'router_p95', t.gateway?.p95, 'ms']);
+    rows.push([t.at, 'latency', 'router_loss', t.gateway?.lossPct, '%']);
+    rows.push([t.at, 'latency', 'router_jitter', t.gateway?.jitter, 'ms']);
+    rows.push([t.at, 'latency', 'internet_p50', t.internet?.p50, 'ms']);
+  }
+  for (const t of store.state.tests.speed) {
+    rows.push([t.at, 'speed', 'download', t.downloadMbps, 'Mbps']);
+    rows.push([t.at, 'speed', 'upload', t.uploadMbps, 'Mbps']);
+    rows.push([t.at, 'speed', 'idle_latency', t.idleLatency, 'ms']);
+    rows.push([t.at, 'speed', 'loaded_latency', t.loadedLatency, 'ms']);
+    rows.push([t.at, 'speed', 'bufferbloat', t.bufferbloatMs, 'ms']);
+  }
+  for (const t of store.state.tests.dns) {
+    rows.push([t.at, 'dns', 'system_p50', t.system?.p50, 'ms']);
+    rows.push([t.at, 'dns', 'public_p50', t.public?.p50, 'ms']);
+  }
+  return rows.map((r) => r.map(csvCell).join(',')).join('\r\n');
+}
+
 async function refreshWifi({ silent = false } = {}) {
   const wifi = await getWifi();
   store.setWifi(wifi);
@@ -207,7 +288,9 @@ const server = http.createServer(async (req, res) => {
           tests: store.state.tests,
           wifi: store.state.wifi,
           router: store.state.router,
-          scans: store.state.scans.slice(0, 10),
+          scans: store.state.scans.slice(0, 50),
+          snapshots: store.state.snapshots,
+          current: currentMetrics(),
         },
         runningJobs: [...jobs.values()].filter((j) => j.status === 'running').map(jobView),
       });
@@ -323,7 +406,42 @@ const server = http.createServer(async (req, res) => {
         speed: store.state.tests.speed,
         events: store.state.events,
         alerts: store.state.alerts,
+        snapshots: store.state.snapshots,
+        current: currentMetrics(),
       });
+    }
+
+    if (p === '/api/snapshots' && req.method === 'POST') {
+      const body = await readJson(req);
+      const snap = store.addSnapshot({ label: body?.label, note: body?.note, metrics: currentMetrics() });
+      store.addEvent('snapshot.created', `Estado guardado: ${snap.label}`);
+      broadcast('snapshot.created', { id: snap.id });
+      return json(res, 201, snap);
+    }
+
+    const snapDel = /^\/api\/snapshots\/([^/]+)$/.exec(p);
+    if (snapDel && req.method === 'DELETE') {
+      const r = store.removeSnapshot(snapDel[1]);
+      return r.removed ? json(res, 200, r) : json(res, 404, { error: 'Estado no encontrado' });
+    }
+
+    if (p === '/api/export') {
+      const format = (url.searchParams.get('format') || 'json').toLowerCase();
+      if (format === 'csv') {
+        res.writeHead(200, {
+          'content-type': 'text/csv; charset=utf-8',
+          'content-disposition': 'attachment; filename="netpilot-mediciones.csv"',
+          'cache-control': 'no-store',
+        });
+        return res.end('\uFEFF' + csvPayload());
+      }
+      if (format !== 'json') return json(res, 400, { error: 'Formato no soportado' });
+      res.writeHead(200, {
+        'content-type': 'application/json; charset=utf-8',
+        'content-disposition': 'attachment; filename="netpilot-export.json"',
+        'cache-control': 'no-store',
+      });
+      return res.end(JSON.stringify(exportPayload(), null, 2));
     }
 
     const ack = /^\/api\/alerts\/([^/]+)\/ack$/.exec(p);
@@ -369,7 +487,7 @@ function readJson(req) {
   return new Promise((resolve) => {
     let data = '';
     req.on('data', (c) => { data += c; if (data.length > 65536) req.destroy(); });
-    req.on('end', () => { try { resolve(JSON.parse(data || '{}')); } catch { resolve(null); } });
+    req.on('end', () => { try { resolve(JSON.parse(data.replace(/^\uFEFF/, '') || '{}')); } catch { resolve(null); } });
   });
 }
 

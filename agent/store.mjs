@@ -18,6 +18,7 @@ const empty = () => ({
   wifi: null,
   router: null,
   tests: { latency: [], dns: [], speed: [] },
+  snapshots: [],
   alerts: [],
   events: [],
   scans: [],
@@ -167,6 +168,27 @@ export class Store {
   setWifi(wifi) {
     this.state.wifi = wifi;
     this.save();
+  }
+
+  addSnapshot({ label, note, metrics }) {
+    const snap = {
+      id: idFor(`snap:${Date.now()}:${Math.random()}`),
+      at: new Date().toISOString(),
+      label: label || `Estado ${new Date().toLocaleString('es-CO')}`,
+      note: note || null,
+      metrics,
+    };
+    this.state.snapshots.unshift(snap);
+    this.state.snapshots = this.state.snapshots.slice(0, 50);
+    this.save();
+    return snap;
+  }
+
+  removeSnapshot(id) {
+    const before = this.state.snapshots.length;
+    this.state.snapshots = this.state.snapshots.filter((s) => s.id !== id);
+    if (this.state.snapshots.length !== before) this.save();
+    return { removed: before - this.state.snapshots.length };
   }
 
   setRouter(router) {

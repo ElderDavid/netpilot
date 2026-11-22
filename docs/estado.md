@@ -18,7 +18,7 @@
 | 1 | Adaptadores MikroTik/OpenWrt + bloqueo | OpenCode | **hecho** (sin hardware) | `main` | `agent/adapters.mjs`, `agent/index.mjs`, `public/app.js` |
 | 2 | Servicio Windows + bandeja + instalador | Claude | pendiente | `feat/windows-service` | `service/*`, `docs/instalacion.md` |
 | 3 | App Android nativa | Claude | pendiente | `feat/android` | `android/*` |
-| 4 | Historial y comparación | OpenCode | pendiente | `feat/history` | `public/app.js`, `agent/store.mjs` |
+| 4 | Historial y comparación | OpenCode | **hecho** | `main` | `public/app.js`, `agent/store.mjs`, `agent/index.mjs` |
 | 4.5 | Servidor MCP | OpenCode | pendiente | `feat/mcp` | `mcp/*`, `docs/mcp.md` |
 
 Estados: `pendiente` · `en curso` · `bloqueado` · `hecho`
@@ -58,6 +58,14 @@ Estados: `pendiente` · `en curso` · `bloqueado` · `hecho`
 - Credenciales **solo en memoria**; no se persisten ni se registran. Se limpian al desconectar.
 - Probado: validación de entrada, host no privado rechazado, error 502 claro contra un equipo que no es MikroTik/OpenWrt.
 - **Pendiente:** probar contra RouterOS y OpenWrt reales; ajustar campos de `registration-table` según versión.
+
+### 2026-11-22 — Tarea 4: historial y comparación (OpenCode) — hecho
+- Snapshots locales (máx. 50) con latencia, velocidad, DNS, señal y equipos.
+- Vista Historial con 4 gráficas SVG (latencia p50, velocidad, pérdida, equipos).
+- Comparador A/B con veredicto por métrica (mejor/peor/igual) y umbral del 5 %.
+- Exportación: JSON completo saneado (MAC enmascarada, sin credenciales) y CSV de mediciones.
+- API: `POST /api/snapshots`, `DELETE /api/snapshots/:id`, `GET /api/export?format=json|csv`.
+- Probado: snapshot con etiqueta, comparación 23 ms → 15 ms (2 mejor / 2 peor), export sin MAC completas.
 
 ## Pendientes de verificación
 

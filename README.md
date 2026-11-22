@@ -32,8 +32,20 @@ El agente imprime ambas URLs al arrancar.
 | DNS comparativo | ✅ | Resolver del sistema vs 8.8.8.8 |
 | Velocidad y bufferbloat | ✅ | Cloudflare, flujos paralelos |
 | Router y ONT | ✅ | HTTP sin autenticación + traceroute |
+| Historial y comparación | ✅ | Gráficas, snapshots y exportación |
 | Matriz de capacidades | ✅ | Estados con evidencia |
 | Bloqueo / QoS / SSID | 🟡 | Bloqueo solo en MikroTik conectado (address-list + regla forward). QoS y SSID, fase 2 |
+
+## Historial y comparación
+
+En **Historial** puedes:
+
+- Ver la evolución de latencia p50, velocidad, pérdida y equipos por escaneo.
+- Guardar un **estado** con las últimas mediciones (máx. 50, solo local).
+- Comparar dos estados (A/B) con veredicto por métrica y umbral del 5 %.
+- Exportar: **JSON** completo saneado (MAC enmascarada, sin credenciales) y **CSV** de mediciones.
+
+Los estados son la forma de medir un cambio real: guarda uno antes de cablear el nodo y otro después.
 
 ## Acceso administrativo (opcional)
 
