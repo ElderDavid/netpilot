@@ -33,7 +33,17 @@ El agente imprime ambas URLs al arrancar.
 | Velocidad y bufferbloat | ✅ | Cloudflare, flujos paralelos |
 | Router y ONT | ✅ | HTTP sin autenticación + traceroute |
 | Matriz de capacidades | ✅ | Estados con evidencia |
-| Bloqueo / QoS / SSID | ⛔ | Requiere adaptador con escritura (fase 2) |
+| Bloqueo / QoS / SSID | 🟡 | Bloqueo solo en MikroTik conectado (address-list + regla forward). QoS y SSID, fase 2 |
+
+## Acceso administrativo (opcional)
+
+En **Router → Acceso administrativo** puedes conectar un MikroTik (REST) u OpenWrt (ubus):
+
+- Lee sistema, leases, ARP y clientes Wi-Fi (señal y tasas si el firmware lo expone).
+- MikroTik: bloquea y desbloquea con `address-list netpilot-block` + regla `forward drop`.
+- OpenWrt: solo lectura; el bloqueo requiere nft/shell y está declarado no disponible.
+- Las credenciales se usan **solo en memoria**, no se guardan ni se registran.
+- Estado honesto: **no verificado en hardware** todavía; la UI lo muestra así.
 
 ## Seguridad y límites
 

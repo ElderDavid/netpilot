@@ -11,6 +11,7 @@ import { scanNetwork } from './discovery.mjs';
 import { inspectRouter } from './router.mjs';
 import { latencySuite, dnsSuite, speedTest } from './speed.mjs';
 import { Store } from './store.mjs';
+import { connectAccess, disconnectAccess, accessStatus, refreshAccess, setBlock } from './adapters.mjs';
 
 // En Windows con IPv6 parcial, fetch puede fallar al resolver primero AAAA.
 dns.setDefaultResultOrder('ipv4first');
@@ -198,6 +199,7 @@ const server = http.createServer(async (req, res) => {
         system: systemInfo(),
         network,
         oui: { source: ouiSource(), note: 'Base OUI local' },
+        access: accessStatus(),
         state: {
           devices: store.devices(),
           alerts: store.state.alerts,
@@ -243,6 +245,43 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, r);
       }
       return json(res, 200, store.state.router);
+    }
+
+    if (p === '/api/router/connect' && req.method === 'POST') {
+      const body = await readJson(req);
+      try {
+        const access = await connectAccess(body || {});
+        store.addEvent('router.access', `Acceso administrativo conectado: ${access.label}`);
+        broadcast('router.access', { connected: true, family: access.family });
+        return json(res, 200, access);
+      } catch (e) {
+        return json(res, 502, { error: e.message });
+      }
+    }
+
+    if (p === '/api/router/disconnect' && req.method === 'POST') {
+      const access = disconnectAccess();
+      store.addEvent('router.access', 'Acceso administrativo cerrado');
+      broadcast('router.access', { connected: false });
+      return json(res, 200, access);
+    }
+
+    if (p === '/api/router/access/refresh' && req.method === 'POST') {
+      const access = await refreshAccess();
+      return json(res, 200, access);
+    }
+
+    if (p === '/api/router/block' && req.method === 'POST') {
+      const body = await readJson(req);
+      if (!body || !body.mac) return json(res, 400, { error: 'Falta el dispositivo' });
+      try {
+        const access = await setBlock({ mac: body.mac, ip: body.ip }, Boolean(body.blocked));
+        store.addEvent('router.block', `${body.blocked ? 'Bloqueado' : 'Desbloqueado'} ${body.ip || body.mac}`, { device: body.mac });
+        broadcast('router.access', { connected: true });
+        return json(res, 200, access);
+      } catch (e) {
+        return json(res, 502, { error: e.message });
+      }
     }
 
     if (p === '/api/tests/latency' && req.method === 'POST') {

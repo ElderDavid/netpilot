@@ -15,7 +15,7 @@
 
 | # | Tarea | Responsable | Estado | Rama | Archivos |
 |---|---|---|---|---|---|
-| 1 | Adaptadores MikroTik/OpenWrt + bloqueo | OpenCode | pendiente | `feat/adapters` | `agent/adapters/*`, `agent/index.mjs`, `public/app.js` |
+| 1 | Adaptadores MikroTik/OpenWrt + bloqueo | OpenCode | **hecho** (sin hardware) | `main` | `agent/adapters.mjs`, `agent/index.mjs`, `public/app.js` |
 | 2 | Servicio Windows + bandeja + instalador | Claude | pendiente | `feat/windows-service` | `service/*`, `docs/instalacion.md` |
 | 3 | App Android nativa | Claude | pendiente | `feat/android` | `android/*` |
 | 4 | Historial y comparación | OpenCode | pendiente | `feat/history` | `public/app.js`, `agent/store.mjs` |
@@ -50,6 +50,14 @@ Estados: `pendiente` · `en curso` · `bloqueado` · `hecho`
 - Agente Windows + PWA local: descubrimiento (ICMP/ARP/SSDP), inventario con evidencia, Wi-Fi, latencia/jitter/pérdida, DNS, speed test, router/ONT, capacidades.
 - Verificado en red real: 4 equipos, Fiberhome de solo lectura, ONT sin web, 5 GHz canal 40.
 - Limitaciones: speed test variable, sin escritura, sin Android nativo ni servicio.
+
+### 2026-11-22 — Tarea 1: adaptadores (OpenCode) — hecho, sin hardware
+- `agent/adapters.mjs`: MikroTik REST (system, leases, ARP, registration-table) y OpenWrt ubus (login, iwinfo, dhcp/file).
+- Bloqueo: MikroTik `address-list netpilot-block` + regla `forward drop`; OpenWrt marcado no disponible.
+- UI: tarjeta "Acceso administrativo" con formulario, clientes, señal/PHY y bloqueo con confirmación.
+- Credenciales **solo en memoria**; no se persisten ni se registran. Se limpian al desconectar.
+- Probado: validación de entrada, host no privado rechazado, error 502 claro contra un equipo que no es MikroTik/OpenWrt.
+- **Pendiente:** probar contra RouterOS y OpenWrt reales; ajustar campos de `registration-table` según versión.
 
 ## Pendientes de verificación
 

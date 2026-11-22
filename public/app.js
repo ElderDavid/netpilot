@@ -666,6 +666,10 @@ function viewRouter() {
     </div>
   </div>
 
+  <div class="section">
+    ${accessCard()}
+  </div>
+
   <div class="section-head"><h2>Matriz de capacidades</h2><p>${r.summary?.supported || 0} soportadas · ${r.summary?.configRequired || 0} requieren configuración · ${r.summary?.unavailable || 0} no disponibles · ${r.summary?.unknown || 0} desconocidas</p></div>
   <div class="cap-list">
     <div class="cap-row head"><div>Función</div><div>Estado</div><div>Evidencia</div></div>
@@ -699,6 +703,78 @@ function viewRouter() {
   </div>`;
 }
 
+function accessCard() {
+  const a = state.data?.access || { connected: false };
+  const gw = state.data?.network?.gateway || '';
+  if (!a.connected) {
+    return `<div class="card">
+      <div class="card-head"><div class="card-title">Acceso administrativo</div><span class="badge">Opcional · solo lectura</span></div>
+      <div class="card-body">
+        <p class="note" style="margin-top:0">Conecta con un <b>MikroTik</b> (REST) o un <b>OpenWrt</b> (ubus) para leer inventario y clientes Wi-Fi. Las credenciales viven en memoria y no se guardan ni se registran.</p>
+        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px">
+          <div><div class="eyebrow">Familia</div>
+            <select class="select" id="acc-family">
+              <option value="auto">Detectar automáticamente</option>
+              <option value="mikrotik">MikroTik RouterOS</option>
+              <option value="openwrt">OpenWrt</option>
+            </select>
+          </div>
+          <div><div class="eyebrow">Host</div><input class="input" id="acc-host" value="${esc(gw)}" placeholder="192.168.88.1" /></div>
+          <div><div class="eyebrow">Puerto</div><input class="input" id="acc-port" placeholder="automático" inputmode="numeric" /></div>
+          <div><div class="eyebrow">Usuario</div><input class="input" id="acc-user" autocomplete="username" placeholder="solo lectura" /></div>
+          <div><div class="eyebrow">Contraseña</div><input class="input" id="acc-pass" type="password" autocomplete="off" /></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;margin-top:14px;flex-wrap:wrap">
+          <button class="btn primary" id="acc-connect">Conectar</button>
+          <span class="note">Recomendado: una cuenta de solo lectura. El bloqueo en RouterOS requiere permisos de escritura.</span>
+        </div>
+      </div>
+    </div>`;
+  }
+  const canBlock = (a.capabilities || []).some((c) => c.key === 'block' && c.status === 'supported');
+  return `<div class="card">
+    <div class="card-head">
+      <div class="card-title">Acceso administrativo</div>
+      <span class="badge ok">${esc(a.label)}</span>
+    </div>
+    <div class="card-body">
+      <dl class="kv">
+        <dt>Host</dt><dd class="mono">${esc(a.host)}</dd>
+        <dt>Conectado</dt><dd>${clock(a.connectedAt)}</dd>
+        <dt>Escritura</dt><dd>${a.writes ? '<span class="badge warn">Habilitada con confirmación</span>' : '<span class="badge info">Solo lectura</span>'}</dd>
+        <dt>Verificación</dt><dd>${a.verified ? '<span class="badge ok">Probado en hardware</span>' : '<span class="badge warn">No verificado en hardware</span>'}</dd>
+      </dl>
+      ${(a.warnings || []).length ? `<p class="note warn" style="margin-top:8px">${a.warnings.map((w) => esc(w)).join('<br>')}</p>` : ''}
+      <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+        <button class="btn small" id="acc-refresh">Actualizar datos</button>
+        <button class="btn small ghost" id="acc-disconnect">Desconectar</button>
+      </div>
+    </div>
+    <div class="card-body" style="padding-top:0">
+      <div class="eyebrow" style="margin-bottom:8px">Clientes vistos por el router (${(a.clients || []).length})</div>
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>Equipo</th><th>IP</th><th>MAC</th><th>Señal</th><th>PHY rx/tx</th><th>Estado</th><th>Acción</th></tr></thead>
+          <tbody>
+            ${(a.clients || []).map((c) => `<tr>
+              <td><div class="cell-main">${esc(c.hostname || c.ip || 'Sin nombre')}</div><div class="cell-sub">${esc(c.source || '')}${c.interface ? ' · ' + esc(c.interface) : ''}</div></td>
+              <td class="mono">${esc(c.ip || '—')}</td>
+              <td class="mono">${esc(c.macMasked || '—')}</td>
+              <td>${c.signal != null ? c.signal + ' dBm' : '—'}</td>
+              <td class="mono">${esc(c.rxRate || '—')} / ${esc(c.txRate || '—')}</td>
+              <td>${c.blocked ? '<span class="badge bad">Bloqueado</span>' : '<span class="badge ok">Activo</span>'}</td>
+              <td>${canBlock
+                ? `<button class="btn small ${c.blocked ? '' : 'ghost'}" data-block-mac="${esc(c.mac)}" data-block-ip="${esc(c.ip || '')}" data-blocked="${c.blocked ? '1' : '0'}">${c.blocked ? 'Desbloquear' : 'Bloquear'}</button>`
+                : '<span class="note">No disponible</span>'}</td>
+            </tr>`).join('') || `<tr><td colspan="7"><div class="empty">Sin clientes reportados.</div></td></tr>`}
+          </tbody>
+        </table>
+      </div>
+      <p class="note" style="margin-top:10px">Credenciales en memoria. Al cerrar el agente se descartan; no se escriben en disco ni en logs.</p>
+    </div>
+  </div>`;
+}
+
 function bindRouter() {
   $('#router-refresh')?.addEventListener('click', async () => {
     const btn = $('#router-refresh');
@@ -709,6 +785,62 @@ function bindRouter() {
       await refresh();
     } catch (e) { toast('No se pudo inspeccionar', e.message); btn.disabled = false; btn.textContent = 'Reintentar'; }
   });
+
+  $('#acc-connect')?.addEventListener('click', async () => {
+    const btn = $('#acc-connect');
+    const payload = {
+      family: $('#acc-family').value,
+      host: $('#acc-host').value.trim(),
+      port: $('#acc-port').value.trim() || null,
+      username: $('#acc-user').value.trim(),
+      password: $('#acc-pass').value,
+    };
+    if (!payload.host || !payload.username) { toast('Faltan datos', 'Host y usuario son obligatorios'); return; }
+    btn.disabled = true;
+    btn.textContent = 'Conectando…';
+    try {
+      const acc = await api('/api/router/connect', { method: 'POST', body: JSON.stringify(payload) });
+      $('#acc-pass').value = '';
+      await refresh();
+      toast('Acceso conectado', acc.label || '');
+    } catch (e) {
+      toast('No se pudo conectar', e.message);
+      btn.disabled = false;
+      btn.textContent = 'Conectar';
+    }
+  });
+
+  $('#acc-disconnect')?.addEventListener('click', async () => {
+    try {
+      await api('/api/router/disconnect', { method: 'POST' });
+      await refresh();
+      toast('Acceso cerrado', 'Las credenciales se descartaron');
+    } catch (e) { toast('No se pudo cerrar', e.message); }
+  });
+
+  $('#acc-refresh')?.addEventListener('click', async () => {
+    try {
+      await api('/api/router/access/refresh', { method: 'POST' });
+      await refresh();
+      toast('Datos actualizados');
+    } catch (e) { toast('No se pudo actualizar', e.message); }
+  });
+
+  $$('#view [data-block-mac]').forEach((b) => b.addEventListener('click', async () => {
+    const mac = b.dataset.blockMac;
+    const ip = b.dataset.blockIp;
+    const blocked = b.dataset.blocked === '1';
+    if (!blocked && !confirm(`¿Bloquear ${ip || mac}? La regla se aplica en el router.`)) return;
+    b.disabled = true;
+    try {
+      await api('/api/router/block', { method: 'POST', body: JSON.stringify({ mac, ip, blocked: !blocked }) });
+      await refresh();
+      toast(blocked ? 'Desbloqueado' : 'Bloqueado', ip || mac);
+    } catch (e) {
+      toast('No se pudo aplicar', e.message);
+      b.disabled = false;
+    }
+  }));
 }
 
 /* ---------------- scan ---------------- */
