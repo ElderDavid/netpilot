@@ -16,7 +16,7 @@
 | # | Tarea | Responsable | Estado | Rama | Archivos |
 |---|---|---|---|---|---|
 | 1 | Adaptadores MikroTik/OpenWrt + bloqueo | OpenCode | **hecho** (sin hardware) | `main` | `agent/adapters.mjs`, `agent/index.mjs`, `public/app.js` |
-| 2 | Servicio Windows + bandeja + instalador | Claude | pendiente | `feat/windows-service` | `service/*`, `docs/instalacion.md` |
+| 2 | Servicio Windows + bandeja + instalador | Claude | **en curso** (desde 2026-11-22) | `feat/windows-service` | `service/*`, `docs/instalacion.md` |
 | 3 | App Android nativa | Claude | pendiente | `feat/android` | `android/*` |
 | 4 | Historial y comparación | OpenCode | **hecho** | `main` | `public/app.js`, `agent/store.mjs`, `agent/index.mjs` |
 | 4.5 | Servidor MCP | OpenCode | pendiente | `feat/mcp` | `mcp/*`, `docs/mcp.md` |
