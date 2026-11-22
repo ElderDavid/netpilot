@@ -17,6 +17,9 @@ node agent/index.mjs
 
 O doble clic en `run.cmd` (queda abierto en una consola).
 
+Para que arranque solo al iniciar sesión, sin consola y con icono en la bandeja, ver
+[docs/instalacion.md](docs/instalacion.md) (`service/install.ps1`, no verificado aún en Windows).
+
 Abre `http://localhost:8787` en el equipo, o `http://<IP-local>:8787` desde el móvil en la misma red.
 El agente imprime ambas URLs al arrancar.
 
