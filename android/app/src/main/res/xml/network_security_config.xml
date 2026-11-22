@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  El agente NetPilot sirve HTTP sin TLS en la red local (http://<IP-privada>:8787).
+  Android no permite filtrar texto plano por rango de IP en este archivo, así que se habilita
+  de forma general y la app restringe por código (HostValidation): solo IPv4 privadas,
+  localhost o nombres .local. Todo lo demás (p. ej. la prueba de latencia HTTP) usa HTTPS.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
