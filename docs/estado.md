@@ -16,7 +16,7 @@
 | # | Tarea | Responsable | Estado | Rama | Archivos |
 |---|---|---|---|---|---|
 | 1 | Adaptadores MikroTik/OpenWrt + bloqueo | OpenCode | **hecho** (sin hardware) | `main` | `agent/adapters.mjs`, `agent/index.mjs`, `public/app.js` |
-| 2 | Servicio Windows + bandeja + instalador | Claude | **en curso** (desde 2026-11-22) | `feat/windows-service` | `service/*`, `docs/instalacion.md` |
+| 2 | Servicio Windows + bandeja + instalador | Claude | **hecho** (sin probar en Windows) | `feat/windows-service` | `service/*`, `docs/instalacion.md` |
 | 3 | App Android nativa | Claude | pendiente | `feat/android` | `android/*` |
 | 4 | Historial y comparación | OpenCode | **hecho** | `main` | `public/app.js`, `agent/store.mjs`, `agent/index.mjs` |
 | 4.5 | Servidor MCP | OpenCode | pendiente | `feat/mcp` | `mcp/*`, `docs/mcp.md` |
@@ -67,11 +67,21 @@ Estados: `pendiente` · `en curso` · `bloqueado` · `hecho`
 - API: `POST /api/snapshots`, `DELETE /api/snapshots/:id`, `GET /api/export?format=json|csv`.
 - Probado: snapshot con etiqueta, comparación 23 ms → 15 ms (2 mejor / 2 peor), export sin MAC completas.
 
+### 2026-11-22 — Tarea 2: servicio Windows + bandeja (Claude) — hecho, sin probar en Windows
+- `service/install.ps1` (admin): tareas `\NetPilot\Agente` y `\NetPilot\Bandeja` al iniciar sesión del usuario (Interactive, RunLevel Limited), regla de firewall opcional y preguntada (TCP 8787, perfil Privado, solo `node.exe`, grupo `NetPilot`), accesos directos en el menú Inicio (todos los usuarios). Idempotente, `-WhatIf`.
+- `service/run-agent.ps1`: supervisor sin ventana; `node <ruta>\agent\index.mjs` con cwd en la raíz, salida a `data/logs/agent.log` (rota a 5 MB), reinicio con espera 2→60 s. Mutex por sesión.
+- `service/tray.ps1`: NotifyIcon con Abrir panel, Reiniciar agente, Ver registro y Salir (solo cierra la bandeja). Estado por color sondeando `GET /manifest.webmanifest` cada 10 s.
+- `service/uninstall.ps1` (admin): detiene procesos, quita tareas + carpeta, reglas y accesos directos; conserva `data/` salvo `-PurgeData`; verifica que no quede nada.
+- **Sin cambios en `agent/`**: el registro se hace redirigiendo la salida; la sonda usa un recurso estático existente.
+- Probado aquí (Linux, Node 22.23.5): `PORT=8799 node /ruta/abs/agent/index.mjs` desde `/` → `/manifest.webmanifest` 200 y `/api/bootstrap` 200.
+- **No probado:** nada de PowerShell se ejecutó (no hay Windows ni PowerShell en este entorno). Archivos en UTF-8 con BOM para que Windows PowerShell 5.1 lea bien los acentos. Lista de verificación manual en `docs/instalacion.md` § «Qué falta verificar».
+- Limitaciones: puede verse una consola un instante al iniciar sesión; «Reiniciar agente» desde un usuario sin privilegios asume que puede arrancar su propia tarea (no verificado).
+
 ## Pendientes de verificación
 
 - Adaptadores MikroTik/OpenWrt: **sin hardware de prueba**. Marcar "no verificado en hardware" hasta conectar un equipo real.
 - App Android: sin SDK en el entorno actual; se entrega proyecto compilable, no APK.
-- Servicio Windows: probar logoff/logon y desinstalación.
+- Servicio Windows: **ningún script ejecutado aún**. Seguir `docs/instalacion.md` § «Qué falta verificar» (instalar, logoff/logon, bandeja, caída de node, firewall, desinstalar).
 
 ## Cómo verificar el estado actual
 
