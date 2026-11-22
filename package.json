@@ -1,0 +1,14 @@
+{
+  "name": "netpilot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "NetPilot — diagnóstico y administración Wi-Fi local-first",
+  "scripts": {
+    "start": "node agent/index.mjs",
+    "dev": "node --watch agent/index.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

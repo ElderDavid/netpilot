@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0f14" />
+  <title>NetPilot</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/icon.svg" />
+  <link rel="stylesheet" href="/styles.css?v=8" />
+</head>
+<body>
+  <div class="app" id="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <svg viewBox="0 0 32 32" class="logo" aria-hidden="true">
+          <path d="M16 30a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" fill="currentColor"/>
+          <path d="M7.05 17.05a12.6 12.6 0 0 1 17.9 0" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+          <path d="M11.3 21.3a6.6 6.6 0 0 1 9.4 0" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+          <path d="M2.8 12.8a18.6 18.6 0 0 1 26.4 0" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".55"/>
+        </svg>
+        <div>
+          <strong>NetPilot</strong>
+          <span>v0.1 · local</span>
+        </div>
+      </div>
+
+      <nav class="nav" id="nav">
+        <button data-route="overview" class="active"><span class="ico">◈</span>Resumen</button>
+        <button data-route="devices"><span class="ico">▤</span>Dispositivos</button>
+        <button data-route="wifi"><span class="ico">≋</span>Wi-Fi</button>
+        <button data-route="tests"><span class="ico">◎</span>Pruebas</button>
+        <button data-route="router"><span class="ico">⌂</span>Router</button>
+      </nav>
+
+      <div class="sidebar-foot">
+        <div class="agent-pill" id="agent-pill"><i class="dot"></i><span>Conectando…</span></div>
+        <button class="btn ghost small" id="btn-scan-side">Escanear red</button>
+        <p class="tiny">Solo lectura · sin credenciales</p>
+      </div>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <div class="net-id">
+          <div class="net-name" id="net-name">—</div>
+          <div class="net-sub" id="net-sub">Detectando red…</div>
+        </div>
+        <div class="top-actions">
+          <div class="pill" id="scan-pill" hidden><i class="spin"></i><span>Escaneando…</span></div>
+          <button class="btn primary" id="btn-scan">Escanear red</button>
+        </div>
+      </header>
+
+      <main id="view" class="view">
+        <div class="loading-block">
+          <div class="spinner"></div>
+          <p>Iniciando NetPilot…</p>
+        </div>
+      </main>
+    </div>
+
+    <nav class="bottom-nav" id="bottom-nav">
+      <button data-route="overview" class="active"><span>◈</span>Resumen</button>
+      <button data-route="devices"><span>▤</span>Equipos</button>
+      <button data-route="wifi"><span>≋</span>Wi-Fi</button>
+      <button data-route="tests"><span>◎</span>Pruebas</button>
+      <button data-route="router"><span>⌂</span>Router</button>
+    </nav>
+  </div>
+
+  <aside class="drawer" id="drawer" hidden>
+    <div class="drawer-head">
+      <div>
+        <div class="eyebrow" id="drawer-eyebrow">Dispositivo</div>
+        <h2 id="drawer-title">—</h2>
+      </div>
+      <button class="icon-btn" id="drawer-close" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="drawer-body" id="drawer-body"></div>
+  </aside>
+  <div class="scrim" id="scrim" hidden></div>
+
+  <div class="toasts" id="toasts"></div>
+  <script src="/app.js?v=8" type="module"></script>
+</body>
+</html>
