@@ -17,7 +17,7 @@
 |---|---|---|---|---|---|
 | 1 | Adaptadores MikroTik/OpenWrt + bloqueo | OpenCode | **hecho** (sin hardware) | `main` | `agent/adapters.mjs`, `agent/index.mjs`, `public/app.js` |
 | 2 | Servicio Windows + bandeja + instalador | Claude | **hecho** (sin probar en Windows) | `feat/windows-service` | `service/*`, `docs/instalacion.md` |
-| 3 | App Android nativa | Claude | pendiente | `feat/android` | `android/*` |
+| 3 | App Android nativa | Claude | **hecho** (compila; sin probar en teléfono) | `feat/android` | `android/*` |
 | 4 | Historial y comparación | OpenCode | **hecho** | `main` | `public/app.js`, `agent/store.mjs`, `agent/index.mjs` |
 | 4.5 | Servidor MCP | OpenCode | pendiente | `feat/mcp` | `mcp/*`, `docs/mcp.md` |
 
@@ -76,12 +76,32 @@ Estados: `pendiente` · `en curso` · `bloqueado` · `hecho`
 - Probado aquí (Linux, Node 22.23.5): `PORT=8799 node /ruta/abs/agent/index.mjs` desde `/` → `/manifest.webmanifest` 200 y `/api/bootstrap` 200.
 - **No probado:** nada de PowerShell se ejecutó (no hay Windows ni PowerShell en este entorno). Archivos en UTF-8 con BOM para que Windows PowerShell 5.1 lea bien los acentos. Lista de verificación manual en `docs/instalacion.md` § «Qué falta verificar».
 - Limitaciones: puede verse una consola un instante al iniciar sesión; «Reiniciar agente» desde un usuario sin privilegios asume que puede arrancar su propia tarea (no verificado).
+### 2026-11-22 — Tarea 3: app Android nativa (Claude) — hecho, no compilado con SDK de Android
+- `android/`: Gradle 8.11.1 (wrapper con SHA-256), AGP 8.7.3, Kotlin 2.0.21, Compose BOM 2024.12.01, Material 3, minSdk 26 / target 35. Versiones comprobadas en Maven.
+- Pantallas: Conectar (IP/puerto manual + búsqueda opcional en la /24), Resumen, Equipos (lista + detalle con evidencia, tipo, confianza, método), Wi-Fi (PC y teléfono), Pruebas (trabajos del agente con progreso + medición local), Router (gateway, ONT, capacidades con estado y evidencia).
+- Sin agente: red/Wi-Fi del teléfono (WifiManager/ConnectivityManager), escaneo (permiso de ubicación, límite de Android 4/2 min), latencia TCP al router y HTTPS a generate_204. Inventario, router y capacidades se declaran «No disponible» con el motivo.
+- Seguridad: sin credenciales (el acceso administrativo queda en el panel web); solo se guarda la última IP/puerto; HTTP solo a IPv4 privadas (mismo criterio que `isPrivateIp`); el parser ignora `mac` y enmascara BSSID.
+- mDNS: **no viable hoy**, el agente no anuncia servicio. Alternativa: sondeo TCP del puerto + `/manifest.webmanifest`.
+- Paquete Kotlin `core` (no `data`): el `.gitignore` raíz ignora cualquier carpeta `data/`.
+- Probado aquí: kotlinc 2.0.21 (el de la distribución de Gradle) compila las clases JVM puras (`core/` sin Android + pruebas); **19/19 pruebas JUnit OK**. Fixture `bootstrap.json` contrastada con las claves reales de `/api/bootstrap`. Prueba de humo del cliente contra el agente real: bootstrap OK, trabajo DNS hasta `done`, 404 y puerto cerrado con mensaje claro, búsqueda encuentra el agente.
+- **No probado:** `./gradlew assembleDebug` (no hay SDK de Android), pantallas Compose, `LocalProbe`, permisos y ejecución en un teléfono. Lista en `android/README.md` § «Qué falta verificar».
+
+### 2026-11-22 — Tarea 3: compilación con SDK (Claude)
+- SDK de Android instalado en el entorno de Claude (Platform 35, Build-Tools 35.0.0, JDK 21; licencias aceptadas con autorización del usuario).
+- `./gradlew assembleDebug testDebugUnitTest lintDebug` → **OK**: `app-debug.apk` (~10 MB), 19/19 pruebas, Lint sin errores (avisos explicados en `android/README.md`).
+- Ajustes de Lint: icono monocromo (Android 13+) y `dataExtractionRules` sin copia en la nube.
+- **No probado:** ejecución. No hay emulador (falta KVM). Falta instalarla en un teléfono real.
+
+### 2026-11-22 — Observaciones en `agent/` para OpenCode (Claude, sin tocar código)
+- `/api/bootstrap` entrega MAC completas: `system.interfaces[].mac`, `network.gatewayMac`, `state.devices[].mac` y `.key`. `/api/wifi` y `state.wifi` entregan BSSID completos. Choca con la regla 1 si se considera la API como «mensaje»; la app Android los ignora, la PWA convendría revisarla.
+- `speed.mjs` `stats()`: el jitter se calcula sobre las muestras **ordenadas**, lo que da (máx − mín)/(n − 1), no la variación entre muestras consecutivas.
+- Propuesta: anunciar `_netpilot._tcp` por mDNS para que Android descubra el agente con NsdManager.
 
 ## Pendientes de verificación
 
 - Adaptadores MikroTik/OpenWrt: **sin hardware de prueba**. Marcar "no verificado en hardware" hasta conectar un equipo real.
-- App Android: sin SDK en el entorno actual; se entrega proyecto compilable, no APK.
-- Servicio Windows: **ningún script ejecutado aún**. Seguir `docs/instalacion.md` § «Qué falta verificar» (instalar, logoff/logon, bandeja, caída de node, firewall, desinstalar).
+- App Android: compila y pasa pruebas/Lint; **falta ejecutarla** en un teléfono (Android 8 y 13+): permisos, SSID, escaneo, conexión al agente y pruebas.
+- Servicio Windows: scripts fusionados; probar instalación, logoff/logon, bandeja, caída de node, firewall y desinstalación en Windows.
 
 ## Cómo verificar el estado actual
 

@@ -1,0 +1,108 @@
+{
+  "version": "0.1.0",
+  "system": {
+    "hostname": "pc-prueba",
+    "platform": "win32 10.0.26100",
+    "node": "v26.0.0",
+    "interfaces": [{ "name": "Wi-Fi", "ip": "192.168.80.20", "mac": "FULL-MAC-SENTINEL" }],
+    "uptimeSec": 1000
+  },
+  "network": {
+    "iface": "Wi-Fi",
+    "ip": "192.168.80.20",
+    "prefix": 24,
+    "subnet": "192.168.80.20/24",
+    "gateway": "192.168.80.1",
+    "gatewayMac": "FULL-MAC-SENTINEL",
+    "gatewayMacMasked": "AA:BB:CC:··:··:··",
+    "gatewayVendor": "Fabricante de prueba"
+  },
+  "oui": { "source": "download", "note": "Base OUI local" },
+  "access": { "connected": false },
+  "state": {
+    "devices": [
+      {
+        "id": "a1b2c3d4e5",
+        "key": "FULL-MAC-SENTINEL",
+        "mac": "FULL-MAC-SENTINEL",
+        "macMasked": "AA:BB:CC:··:··:··",
+        "ip": "192.168.80.1",
+        "ips": ["192.168.80.1"],
+        "name": null,
+        "vendor": "Fabricante de prueba",
+        "type": "router",
+        "typeLabel": "Router",
+        "confidence": "high",
+        "reasons": ["Es la puerta de enlace", "Responde HTTP"],
+        "hostname": null,
+        "ttl": 64,
+        "rttMs": 2.5,
+        "online": true,
+        "isGateway": true,
+        "ssdp": null,
+        "method": ["icmp", "arp"],
+        "firstSeen": "2026-11-22T10:00:00.000Z",
+        "lastSeen": "2026-11-22T11:00:00.000Z"
+      },
+      {
+        "id": "f6e5d4c3b2",
+        "key": "ip:192.168.80.30",
+        "mac": null,
+        "macMasked": null,
+        "ip": "192.168.80.30",
+        "ips": ["192.168.80.29", "192.168.80.30"],
+        "name": null,
+        "vendor": null,
+        "type": "tv",
+        "typeLabel": "Televisor",
+        "confidence": "medium",
+        "reasons": ["SSDP: MediaRenderer"],
+        "hostname": null,
+        "ttl": null,
+        "rttMs": null,
+        "online": false,
+        "isGateway": false,
+        "ssdp": { "friendlyName": "TV sala" },
+        "method": ["ssdp"],
+        "firstSeen": "2026-11-22T10:00:00.000Z",
+        "lastSeen": "2026-11-22T10:30:00.000Z"
+      },
+      { "ip": "192.168.80.99" }
+    ],
+    "alerts": [
+      { "id": "al1", "at": "2026-11-22T10:00:00.000Z", "type": "device.new", "severity": "info", "deviceId": "f6e5d4c3b2", "title": "Nuevo dispositivo en la red", "detail": "TV sala", "ack": false }
+    ],
+    "events": [],
+    "tests": {
+      "latency": [
+        { "id": "t1", "at": "2026-11-22T10:05:00.000Z", "gateway": { "target": "192.168.80.1", "sent": 20, "lost": 0, "lossPct": 0, "min": 15.1, "max": 101.2, "avg": 30.4, "p50": 18.2, "p95": 100.1, "jitter": 4.4 }, "internet": { "target": "8.8.8.8", "sent": 20, "lost": 1, "lossPct": 5, "min": null, "max": null, "avg": null, "p50": 35.0, "p95": null, "jitter": null } }
+      ],
+      "dns": [
+        { "id": "d1", "at": "2026-11-22T10:06:00.000Z", "system": { "p50": 12.3, "label": "Sistema (router)" }, "public": { "p50": 11.9, "label": "8.8.8.8" } }
+      ],
+      "speed": []
+    },
+    "wifi": {
+      "link": { "connected": true, "state": "conectado", "ssid": "MiRed", "bssid": "FULL-MAC-SENTINEL", "band": "5 GHz", "channel": 40, "radio": "802.11ac", "auth": "WPA2-Personal", "cipher": "CCMP", "rxMbps": 433.3, "txMbps": 433.3, "signalPct": 96, "rssi": -44, "adapter": "x", "profile": "MiRed" },
+      "networks": [ { "ssid": "Vecino", "bssid": "FULL-MAC-SENTINEL", "signalPct": 40, "band": "2,4 GHz", "channel": 6, "radio": "802.11n", "auth": "WPA2-Personal", "cipher": "CCMP", "stations": null, "utilization": null } ],
+      "channels": {},
+      "recommendation": { "band": "5", "shouldChange": false, "reason": "El canal está poco ocupado.", "note": "Bloques de 80 MHz." },
+      "at": "2026-11-22T10:07:00.000Z"
+    },
+    "router": {
+      "gateway": { "ip": "192.168.80.1", "macMasked": "AA:BB:CC:··:··:··", "vendor": "Fabricante de prueba", "web": { "reachable": true, "scheme": "http", "status": 200, "server": null, "title": "Panel" }, "family": "generic", "familyLabel": "Genérico" },
+      "hops": [],
+      "ont": { "ip": "192.168.1.254", "ms": 3.2, "web80": false, "web443": false, "manageable": false, "note": "No expone administración web desde esta subred" },
+      "capabilities": [
+        { "key": "discovery", "label": "Descubrimiento e inventario", "status": "supported", "evidence": "Sondas locales del agente", "mvp": "supported" },
+        { "key": "block", "label": "Bloqueo / desbloqueo", "status": "unavailable", "evidence": "Sin API", "mvp": "unavailable" }
+      ],
+      "summary": {},
+      "inspectedAt": "2026-11-22T10:08:00.000Z"
+    },
+    "scans": [],
+    "snapshots": [],
+    "current": {}
+  },
+  "runningJobs": []
+}
