@@ -3,11 +3,10 @@
 Cliente nativo (Kotlin + Jetpack Compose + Material 3) del agente NetPilot. Lee la API local del
 agente y, sin agente, muestra solo lo que Android permite medir desde el teléfono.
 
-> **Estado: compila; no probado en un dispositivo.** El 2026-11-22, en Linux con JDK 21, SDK
-> Platform 35 y Build-Tools 35.0.0: `./gradlew assembleDebug testDebugUnitTest lintDebug` termina
-> sin errores (APK debug de ~10 MB, 19/19 pruebas JVM, Lint sin errores). No se pudo ejecutar en un
-> emulador porque el entorno no tiene KVM, así que **pantallas, permisos y uso real en un teléfono
-> siguen sin verificar**. Ver «Qué falta verificar».
+> **Estado: probado en un dispositivo real (Android 15 / API 35) el 2026-11-22.** Compila con
+> `./gradlew assembleDebug`; se instaló por ADB en un Redmi `23049PCD8G` y se verificaron conexión,
+> resumen, equipos, Wi-Fi (con ubicación activa), pruebas y router. Queda por probar en Android 8
+> (API 26) y en otro fabricante.
 
 ## Descargar el APK sin compilar
 

@@ -17,7 +17,7 @@
 |---|---|---|---|---|---|
 | 1 | Adaptadores MikroTik/OpenWrt + bloqueo | OpenCode | **hecho** (sin hardware) | `main` | `agent/adapters.mjs`, `agent/index.mjs`, `public/app.js` |
 | 2 | Servicio Windows + bandeja + instalador | Claude | **hecho** (probado en Windows 11) | `main` | `service/*`, `docs/instalacion.md` |
-| 3 | App Android nativa | Claude | **hecho** (compila; sin probar en teléfono) | `main` | `android/*` |
+| 3 | App Android nativa | Claude | **hecho** (probado en Android 15) | `main` | `android/*` |
 | 4 | Historial y comparación | OpenCode | **hecho** | `main` | `public/app.js`, `agent/store.mjs`, `agent/index.mjs` |
 | 4.5 | Servidor MCP | OpenCode | pendiente | `feat/mcp` | `mcp/*`, `docs/mcp.md` |
 
@@ -92,6 +92,14 @@ Estados: `pendiente` · `en curso` · `bloqueado` · `hecho`
 - Ajustes de Lint: icono monocromo (Android 13+) y `dataExtractionRules` sin copia en la nube.
 - **No probado:** ejecución. No hay emulador (falta KVM). Falta instalarla en un teléfono real.
 
+### 2026-11-22 — Tarea 3 verificada en dispositivo (OpenCode)
+- Dispositivo: Redmi `23049PCD8G` (`marble_global`), **Android 15 / API 35**, 1080×2400, por USB con depuración.
+- APK compilado en local con JDK 17 + SDK 35: `gradlew assembleDebug` → **BUILD SUCCESSFUL en 2m 07s**, 9,6 MB. Instalado con `adb install -r`.
+- Conexión al agente `192.168.80.18:8787` desde la pantalla inicial (IP + puerto).
+- Verificado en el teléfono: Resumen (5 de 5 equipos, alerta del propio móvil), Equipos (nombres, tipos y evidencia), Wi-Fi (SSID, señal, enlace, bandas y escaneo), Pruebas (ejecutó latencia: p50 16 ms / p95 109 ms, 0 % pérdida) y Router (Fiberhome, capacidades con evidencia).
+- Hallazgo: con el permiso concedido pero la **ubicación del sistema apagada**, Android oculta el SSID y el escaneo. Se activó la ubicación y funcionó; la app ya lo explica en pantalla.
+- **Falta:** probar en un Android 8 (API 26) y en otro fabricante; el resto quedó verificado.
+
 ### 2026-11-22 — Tarea 2 verificada en Windows (OpenCode)
 - Clon en `Documents\netpilot-prueba` (rama `feat/windows-service`). `install.ps1 -WhatIf -Firewall No` → exit 0, sin cambios.
 - Instalación real `-Firewall Yes` → exit 0. Tareas `\NetPilot\Agente` y `\NetPilot\Bandeja` en Running; regla de firewall Privada activa; accesos directos creados; `GET /api/bootstrap` → 200.
@@ -116,7 +124,7 @@ Estados: `pendiente` · `en curso` · `bloqueado` · `hecho`
 ## Pendientes de verificación
 
 - Adaptadores MikroTik/OpenWrt: **sin hardware de prueba**. Marcar "no verificado en hardware" hasta conectar un equipo real.
-- App Android: compila y pasa pruebas/Lint; **falta ejecutarla** en un teléfono (Android 8 y 13+): permisos, SSID, escaneo, conexión al agente y pruebas.
+- App Android: probada en un dispositivo real (**Android 15 / API 35**). Falta un Android 8 (API 26) y otro fabricante.
 - Servicio Windows: instalación, supervisor, bandeja y desinstalación verificados en Windows 11. **Falta:** cierre/apertura de sesión y clics de la bandeja.
 - Red doméstica marcada como Pública: el móvil solo entra por la regla `LocalSubnet` añadida; si se cambia a Privada, basta la regla del instalador.
 
