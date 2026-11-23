@@ -1,5 +1,7 @@
-# Compila la app Android, corre pruebas JVM y Lint, y publica el APK debug como artefacto.
-# Descarga: pestaña Actions › ejecución › Artifacts › netpilot-debug.apk (requiere sesión en GitHub).
+# Compila la app Android, corre pruebas JVM y Lint.
+# En main o al lanzarlo a mano (Actions › Android › Run workflow) publica el APK debug en la
+# pre-release «android-debug» (Releases). No usa artefactos de Actions: la cuota de almacenamiento
+# de la cuenta está llena y las releases no cuentan contra ella.
 name: Android
 
 on:
@@ -21,6 +23,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: write   # solo para subir el APK a la release (no se usa en PR)
     defaults:
       run:
         working-directory: android
@@ -42,23 +46,16 @@ jobs:
       - name: Compilar, probar y Lint
         run: ./gradlew --no-daemon assembleDebug testDebugUnitTest lintDebug
 
-      - name: Nombrar el APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/netpilot-debug.apk"
-
-      # archive: false → se descarga directamente como .apk (no zip).
-      - uses: actions/upload-artifact@v7
-        with:
-          path: netpilot-debug.apk
-          archive: false
-          retention-days: 14
-
-      - name: Informes de pruebas y Lint
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: android-reports
-          path: |
-            android/app/build/reports/
-            android/app/build/test-results/
-          if-no-files-found: ignore
-          retention-days: 7
+      - name: Publicar APK en la pre-release android-debug
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk netpilot-debug.apk
+          notes="APK debug generado automáticamente desde ${GITHUB_REF_NAME} (${GITHUB_SHA::7}). No firmado para tienda; no probado en hardware salvo que docs/estado.md diga lo contrario."
+          if gh release view android-debug >/dev/null 2>&1; then
+            gh release edit android-debug --notes "$notes"
+          else
+            gh release create android-debug --prerelease --title "Android debug (automático)" --notes "$notes" --target "$GITHUB_SHA"
+          fi
+          gh release upload android-debug netpilot-debug.apk --clobber
