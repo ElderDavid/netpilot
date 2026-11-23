@@ -1,5 +1,6 @@
 import http from 'node:http';
 import https from 'node:https';
+import crypto from 'node:crypto';
 
 /**
  * Adaptadores de administración (solo lectura por defecto).
@@ -54,6 +55,11 @@ function isPrivateHost(ip) {
 function normalizeMac(m) {
   const s = String(m || '').toUpperCase().replace(/[^0-9A-F]/g, '');
   return s.length === 12 ? s.match(/.{2}/g).join(':') : null;
+}
+
+/** Identificador opaco por MAC: la API nunca devuelve la MAC completa. */
+function idForMac(mac) {
+  return crypto.createHash('sha1').update(String(mac)).digest('hex').slice(0, 12);
 }
 
 /* ------------------------------------------------------------------ MikroTik */
@@ -130,11 +136,15 @@ export async function connectMikrotik(cfg) {
     .filter((c) => c.mac)
     .map((c) => ({
       ...c,
+      id: idForMac(c.mac),
       macMasked: `${c.mac.split(':').slice(0, 3).join(':')}:··:··:··`,
       online: c.lease === 'bound' || Boolean(c.signal) || Boolean(c.ip),
       blocked: false,
     }))
     .sort((a, b) => String(a.ip || '').localeCompare(String(b.ip || ''), undefined, { numeric: true }));
+
+  const macById = new Map(list.map((c) => [c.id, c.mac]));
+  for (const c of list) delete c.mac;
 
   const addressList = await mtGet(base, '/ip/firewall/address-list', cfg).catch(() => []);
   const blockedIps = new Set(addressList.filter((e) => e.list === 'netpilot-block').map((e) => e.address));
@@ -145,6 +155,7 @@ export async function connectMikrotik(cfg) {
     label: `${identity[0]?.name ? identity[0].name + ' · ' : ''}MikroTik RouterOS ${version}`,
     info: { version, board, uptime: clean(info.uptime), cpuLoad: clean(info['cpu-load']) },
     clients: list,
+    macById,
     capabilities: [
       { key: 'router_inventory', label: 'Inventario desde el router', status: 'supported', evidence: `REST /ip/dhcp-server/lease y /ip/arp · RouterOS ${version}` },
       { key: 'traffic_per_device', label: 'Señal y tasas por cliente', status: regSource ? 'supported' : 'unavailable', evidence: regSource ? `registration-table (${regSource})` : 'Sin tabla de registro Wi-Fi' },
@@ -266,13 +277,18 @@ export async function connectOpenwrt(cfg) {
     clients.set(mac, { ...prev, ip: l.ip || l.address || prev.ip, hostname: l.hostname || l.host || prev.hostname, online: true, source: prev.source || 'DHCP' });
   }
 
-  const list = [...clients.values()].sort((a, b) => String(a.ip || '').localeCompare(String(b.ip || ''), undefined, { numeric: true }));
+  const list = [...clients.values()]
+    .map((c) => ({ ...c, id: idForMac(c.mac), macMasked: `${c.mac.split(':').slice(0, 3).join(':')}:··:··:··` }))
+    .sort((a, b) => String(a.ip || '').localeCompare(String(b.ip || ''), undefined, { numeric: true }));
+  const macById = new Map(list.map((c) => [c.id, c.mac]));
+  for (const c of list) delete c.mac;
 
   return {
     family: 'openwrt',
     label: 'OpenWrt (ubus)',
     info: { radios, leases: leases.length },
     clients: list,
+    macById,
     capabilities: [
       { key: 'router_inventory', label: 'Inventario desde el router', status: leases.length || list.length ? 'supported' : 'unknown', evidence: 'ubus: iwinfo + dhcp/file' },
       { key: 'traffic_per_device', label: 'Tráfico por dispositivo', status: 'unavailable', evidence: 'Sin contabilidad por cliente expuesta por ubus' },
@@ -332,19 +348,8 @@ export function disconnectAccess() {
 
 export function accessStatus() {
   if (!session) return { connected: false };
-  return {
-    connected: true,
-    family: session.family,
-    label: session.label,
-    host: session.host,
-    connectedAt: session.connectedAt,
-    info: session.info,
-    clients: session.clients,
-    capabilities: session.capabilities,
-    writes: session.writes,
-    verified: session.verified,
-    warnings: session.warnings,
-  };
+  const { cfg, macById, ...rest } = session;
+  return { connected: true, ...rest };
 }
 
 export async function refreshAccess() {
@@ -355,9 +360,11 @@ export async function refreshAccess() {
   return accessStatus();
 }
 
-export async function setBlock({ mac, ip }, blocked) {
+export async function setBlock({ clientId, ip }, blocked) {
   if (!session) throw new Error('No hay sesión de administración');
   if (session.family !== 'mikrotik') throw new Error('Este adaptador no soporta bloqueo');
+  const mac = session.macById?.get(clientId);
+  if (!mac) throw new Error('Dispositivo no encontrado en la sesión; actualiza la lista');
   await blockMikrotik(session.cfg, { mac, ip }, blocked);
   await refreshAccess();
   return accessStatus();

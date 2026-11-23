@@ -92,6 +92,12 @@ Estados: `pendiente` · `en curso` · `bloqueado` · `hecho`
 - Ajustes de Lint: icono monocromo (Android 13+) y `dataExtractionRules` sin copia en la nube.
 - **No probado:** ejecución. No hay emulador (falta KVM). Falta instalarla en un teléfono real.
 
+### 2026-11-22 — Correcciones tras revisión (OpenCode)
+- API: `/api/bootstrap`, `/api/devices/:id` y `/api/wifi` ya no entregan MAC completas, `gatewayMac`, `interfaces[].mac` ni `key`. BSSID enmascarados y bandera `current` calculada en el servidor.
+- Adaptadores: los clientes usan un id opaco; el bloqueo resuelve la MAC en el servidor.
+- `speed.mjs`: el jitter se calcula sobre muestras consecutivas, no sobre la lista ordenada.
+- Probado: bootstrap sin campos `mac`/`key`, export sin MAC completas, `current` marca RPEMN.
+
 ### 2026-11-22 — Observaciones en `agent/` para OpenCode (Claude, sin tocar código)
 - `/api/bootstrap` entrega MAC completas: `system.interfaces[].mac`, `network.gatewayMac`, `state.devices[].mac` y `.key`. `/api/wifi` y `state.wifi` entregan BSSID completos. Choca con la regla 1 si se considera la API como «mensaje»; la app Android los ignora, la PWA convendría revisarla.
 - `speed.mjs` `stats()`: el jitter se calcula sobre las muestras **ordenadas**, lo que da (máx − mín)/(n − 1), no la variación entre muestras consecutivas.

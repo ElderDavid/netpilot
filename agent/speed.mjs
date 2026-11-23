@@ -2,11 +2,12 @@ import { promises as dns } from 'node:dns';
 import { pingHost, sleep } from './net.mjs';
 
 function stats(values) {
-  const v = values.filter((n) => Number.isFinite(n)).sort((a, b) => a - b);
+  const raw = values.filter((n) => Number.isFinite(n));
+  const v = [...raw].sort((a, b) => a - b);
   if (!v.length) return { min: null, max: null, avg: null, p50: null, p95: null, jitter: null };
   const avg = v.reduce((a, b) => a + b, 0) / v.length;
-  const jitter = v.length > 1
-    ? v.slice(1).reduce((a, x, i) => a + Math.abs(x - v[i]), 0) / (v.length - 1)
+  const jitter = raw.length > 1
+    ? raw.slice(1).reduce((a, x, i) => a + Math.abs(x - raw[i]), 0) / (raw.length - 1)
     : 0;
   return {
     min: Math.round(v[0] * 10) / 10,

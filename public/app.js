@@ -487,7 +487,7 @@ function viewWifi() {
       <tbody>
         ${nets.sort((a, b) => (b.signalPct ?? 0) - (a.signalPct ?? 0)).map((n) => `
           <tr>
-            <td class="cell-main">${esc(n.ssid)}${n.bssid === l.bssid ? ' <span class="badge accent">actual</span>' : ''}</td>
+            <td class="cell-main">${esc(n.ssid)}${n.current ? ' <span class="badge accent">actual</span>' : ''}</td>
             <td>${esc(n.band || '—')}</td>
             <td class="mono">${n.channel ?? '—'}</td>
             <td>${n.signalPct != null ? n.signalPct + ' %' : '—'}</td>
@@ -967,7 +967,7 @@ function accessCard() {
               <td class="mono">${esc(c.rxRate || '—')} / ${esc(c.txRate || '—')}</td>
               <td>${c.blocked ? '<span class="badge bad">Bloqueado</span>' : '<span class="badge ok">Activo</span>'}</td>
               <td>${canBlock
-                ? `<button class="btn small ${c.blocked ? '' : 'ghost'}" data-block-mac="${esc(c.mac)}" data-block-ip="${esc(c.ip || '')}" data-blocked="${c.blocked ? '1' : '0'}">${c.blocked ? 'Desbloquear' : 'Bloquear'}</button>`
+                ? `<button class="btn small ${c.blocked ? '' : 'ghost'}" data-block-id="${esc(c.id)}" data-block-ip="${esc(c.ip || '')}" data-blocked="${c.blocked ? '1' : '0'}">${c.blocked ? 'Desbloquear' : 'Bloquear'}</button>`
                 : '<span class="note">No disponible</span>'}</td>
             </tr>`).join('') || `<tr><td colspan="7"><div class="empty">Sin clientes reportados.</div></td></tr>`}
           </tbody>
@@ -1029,16 +1029,16 @@ function bindRouter() {
     } catch (e) { toast('No se pudo actualizar', e.message); }
   });
 
-  $$('#view [data-block-mac]').forEach((b) => b.addEventListener('click', async () => {
-    const mac = b.dataset.blockMac;
+  $$('#view [data-block-id]').forEach((b) => b.addEventListener('click', async () => {
+    const clientId = b.dataset.blockId;
     const ip = b.dataset.blockIp;
     const blocked = b.dataset.blocked === '1';
-    if (!blocked && !confirm(`¿Bloquear ${ip || mac}? La regla se aplica en el router.`)) return;
+    if (!blocked && !confirm(`¿Bloquear ${ip || clientId}? La regla se aplica en el router.`)) return;
     b.disabled = true;
     try {
-      await api('/api/router/block', { method: 'POST', body: JSON.stringify({ mac, ip, blocked: !blocked }) });
+      await api('/api/router/block', { method: 'POST', body: JSON.stringify({ clientId, ip, blocked: !blocked }) });
       await refresh();
-      toast(blocked ? 'Desbloqueado' : 'Bloqueado', ip || mac);
+      toast(blocked ? 'Desbloqueado' : 'Bloqueado', ip || clientId);
     } catch (e) {
       toast('No se pudo aplicar', e.message);
       b.disabled = false;

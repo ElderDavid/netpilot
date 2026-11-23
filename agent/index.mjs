@@ -156,6 +156,42 @@ function maskBssid(b) {
   return p.length >= 3 ? `${p.slice(0, 3).join(':')}:··:··:··` : b;
 }
 
+function maskMac(mac) {
+  if (!mac) return null;
+  const p = String(mac).split(':');
+  return p.length >= 4 ? `${p.slice(0, 3).join(':')}:··:··:··` : null;
+}
+
+/** La API nunca entrega la MAC completa de un equipo ni su clave interna. */
+function publicDevice(d) {
+  const { mac, key, ...rest } = d;
+  return { ...rest, macMasked: d.macMasked || maskMac(mac) };
+}
+
+function publicWifi(w) {
+  if (!w) return null;
+  const currentBssid = w.link?.bssid;
+  return {
+    ...w,
+    link: w.link ? { ...w.link, bssid: maskBssid(w.link.bssid) } : w.link,
+    networks: (w.networks || []).map((n) => ({
+      ...n,
+      bssid: maskBssid(n.bssid),
+      current: Boolean(currentBssid && n.bssid && String(n.bssid).toLowerCase() === String(currentBssid).toLowerCase()),
+    })),
+  };
+}
+
+function publicSystem(s) {
+  return { ...s, interfaces: (s.interfaces || []).map((i) => ({ name: i.name, ip: i.ip })) };
+}
+
+function publicNetwork(n) {
+  if (!n) return null;
+  const { gatewayMac, ...rest } = n;
+  return { ...rest, gatewayMacMasked: n.gatewayMacMasked || maskMac(gatewayMac) };
+}
+
 function exportPayload() {
   const s = store.state;
   return {
@@ -277,16 +313,16 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/bootstrap') {
       return json(res, 200, {
         version: '0.1.0',
-        system: systemInfo(),
-        network,
+        system: publicSystem(systemInfo()),
+        network: publicNetwork(network),
         oui: { source: ouiSource(), note: 'Base OUI local' },
         access: accessStatus(),
         state: {
-          devices: store.devices(),
+          devices: store.devices().map(publicDevice),
           alerts: store.state.alerts,
           events: store.state.events.slice(0, 60),
           tests: store.state.tests,
-          wifi: store.state.wifi,
+          wifi: publicWifi(store.state.wifi),
           router: store.state.router,
           scans: store.state.scans.slice(0, 50),
           snapshots: store.state.snapshots,
@@ -317,9 +353,9 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/wifi') {
       const force = url.searchParams.get('refresh') === '1';
       const cached = store.state.wifi;
-      if (!force && cached && Date.now() - new Date(cached.at).getTime() < 30000) return json(res, 200, cached);
+      if (!force && cached && Date.now() - new Date(cached.at).getTime() < 30000) return json(res, 200, publicWifi(cached));
       const wifi = await refreshWifi();
-      return json(res, 200, wifi);
+      return json(res, 200, publicWifi(wifi));
     }
 
     if (p === '/api/router') {
@@ -356,10 +392,10 @@ const server = http.createServer(async (req, res) => {
 
     if (p === '/api/router/block' && req.method === 'POST') {
       const body = await readJson(req);
-      if (!body || !body.mac) return json(res, 400, { error: 'Falta el dispositivo' });
+      if (!body || !body.clientId) return json(res, 400, { error: 'Falta el dispositivo' });
       try {
-        const access = await setBlock({ mac: body.mac, ip: body.ip }, Boolean(body.blocked));
-        store.addEvent('router.block', `${body.blocked ? 'Bloqueado' : 'Desbloqueado'} ${body.ip || body.mac}`, { device: body.mac });
+        const access = await setBlock({ clientId: body.clientId, ip: body.ip }, Boolean(body.blocked));
+        store.addEvent('router.block', `${body.blocked ? 'Bloqueado' : 'Desbloqueado'} ${body.ip || body.clientId}`, { device: body.clientId });
         broadcast('router.access', { connected: true });
         return json(res, 200, access);
       } catch (e) {
@@ -458,9 +494,9 @@ const server = http.createServer(async (req, res) => {
         const body = await readJson(req);
         const out = store.setDeviceOverride(dev[1], body || {});
         broadcast('device.updated', { deviceId: dev[1] });
-        return json(res, 200, out);
+        return json(res, 200, publicDevice(out));
       }
-      return json(res, 200, d);
+      return json(res, 200, publicDevice(d));
     }
 
     if (p.startsWith('/api/')) return json(res, 404, { error: 'Ruta no encontrada' });
