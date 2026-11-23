@@ -9,6 +9,13 @@ agente y, sin agente, muestra solo lo que Android permite medir desde el teléfo
 > emulador porque el entorno no tiene KVM, así que **pantallas, permisos y uso real en un teléfono
 > siguen sin verificar**. Ver «Qué falta verificar».
 
+## Descargar el APK sin compilar
+
+GitHub Actions (`.github/workflows/android.yml`) compila, prueba y pasa Lint en cada PR que toque
+`android/`. En `main`, o al lanzarlo a mano (*Actions › Android › Run workflow*), publica
+`netpilot-debug.apk` en la pre-release **android-debug** (pestaña *Releases* del repo). Se usa una
+release porque la cuota de artefactos de Actions de la cuenta está llena.
+
 ## Requisitos para compilar
 
 - JDK 17 o superior (Android Studio trae uno).
