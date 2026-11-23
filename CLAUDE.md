@@ -82,7 +82,7 @@ Todo esto es **un perfil**, no una garantía en otras redes.
 
 - Prueba de velocidad con Cloudflare: puede limitar la descarga tras varias corridas. Ya se advierte en UI.
 - Sin selector de interfaz ni detección de portal cautivo; sin IPv6.
-- Sin app Android nativa (hoy PWA) ni servicio de Windows.
+- App Android nativa y servicio de Windows ya en `main`; el servicio está probado en Windows 11 y la app compila, pero **falta probarla en un teléfono**.
 - Escritura limitada a bloqueo en MikroTik; OpenWrt solo lectura. **No verificado en hardware.**
 
 ## Roadmap y reparto

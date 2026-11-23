@@ -16,8 +16,8 @@
 | # | Tarea | Responsable | Estado | Rama | Archivos |
 |---|---|---|---|---|---|
 | 1 | Adaptadores MikroTik/OpenWrt + bloqueo | OpenCode | **hecho** (sin hardware) | `main` | `agent/adapters.mjs`, `agent/index.mjs`, `public/app.js` |
-| 2 | Servicio Windows + bandeja + instalador | Claude | **hecho** (sin probar en Windows) | `feat/windows-service` | `service/*`, `docs/instalacion.md` |
-| 3 | App Android nativa | Claude | **hecho** (compila; sin probar en teléfono) | `feat/android` | `android/*` |
+| 2 | Servicio Windows + bandeja + instalador | Claude | **hecho** (probado en Windows 11) | `main` | `service/*`, `docs/instalacion.md` |
+| 3 | App Android nativa | Claude | **hecho** (compila; sin probar en teléfono) | `main` | `android/*` |
 | 4 | Historial y comparación | OpenCode | **hecho** | `main` | `public/app.js`, `agent/store.mjs`, `agent/index.mjs` |
 | 4.5 | Servidor MCP | OpenCode | pendiente | `feat/mcp` | `mcp/*`, `docs/mcp.md` |
 
@@ -92,6 +92,16 @@ Estados: `pendiente` · `en curso` · `bloqueado` · `hecho`
 - Ajustes de Lint: icono monocromo (Android 13+) y `dataExtractionRules` sin copia en la nube.
 - **No probado:** ejecución. No hay emulador (falta KVM). Falta instalarla en un teléfono real.
 
+### 2026-11-22 — Tarea 2 verificada en Windows (OpenCode)
+- Clon en `Documents\netpilot-prueba` (rama `feat/windows-service`). `install.ps1 -WhatIf -Firewall No` → exit 0, sin cambios.
+- Instalación real `-Firewall Yes` → exit 0. Tareas `\NetPilot\Agente` y `\NetPilot\Bandeja` en Running; regla de firewall Privada activa; accesos directos creados; `GET /api/bootstrap` → 200.
+- Supervisor: se mató `node` (PID 25928) y volvió solo en 4 s (PID nuevo, HTTP 200).
+- Bandeja: proceso `tray.ps1` activo.
+- Desinstalación: 0 tareas, 0 reglas, 0 accesos directos, 0 procesos, puerto cerrado; `data/` conservado.
+- Reinstalado desde el proyecto real (`Downloads\OpenCode\netpilot`) con `-Firewall Yes`.
+- La Wi-Fi está marcada como **red Pública**, así que la regla Privada no servía para el móvil: se añadió una segunda regla del grupo `NetPilot`, perfil Público y `RemoteAddress LocalSubnet` (solo subred local, se borra con el desinstalador).
+- **No verificado:** cierre y apertura de sesión (no se puede cerrar la sesión del usuario desde el agente) y los clics de la bandeja. El disparador es `AtLogOn` del usuario `LAPTOP-QU745GBU\Elder`.
+
 ### 2026-11-22 — Correcciones tras revisión (OpenCode)
 - API: `/api/bootstrap`, `/api/devices/:id` y `/api/wifi` ya no entregan MAC completas, `gatewayMac`, `interfaces[].mac` ni `key`. BSSID enmascarados y bandera `current` calculada en el servidor.
 - Adaptadores: los clientes usan un id opaco; el bloqueo resuelve la MAC en el servidor.
@@ -107,7 +117,8 @@ Estados: `pendiente` · `en curso` · `bloqueado` · `hecho`
 
 - Adaptadores MikroTik/OpenWrt: **sin hardware de prueba**. Marcar "no verificado en hardware" hasta conectar un equipo real.
 - App Android: compila y pasa pruebas/Lint; **falta ejecutarla** en un teléfono (Android 8 y 13+): permisos, SSID, escaneo, conexión al agente y pruebas.
-- Servicio Windows: scripts fusionados; probar instalación, logoff/logon, bandeja, caída de node, firewall y desinstalación en Windows.
+- Servicio Windows: instalación, supervisor, bandeja y desinstalación verificados en Windows 11. **Falta:** cierre/apertura de sesión y clics de la bandeja.
+- Red doméstica marcada como Pública: el móvil solo entra por la regla `LocalSubnet` añadida; si se cambia a Privada, basta la regla del instalador.
 
 ## Cómo verificar el estado actual
 
