@@ -95,10 +95,10 @@ function parseScan(text) {
   for (const n of nets) {
     for (const b of n.bssids) {
       rows.push({
+        ...b,
         ssid: n.ssid,
         auth: b.auth || n.auth || null,
         cipher: b.cipher || n.cipher || null,
-        ...b,
       });
     }
   }

@@ -136,6 +136,7 @@ function render() {
   switch (state.route) {
     case 'devices': view.innerHTML = viewDevices(); bindDevices(); break;
     case 'wifi': view.innerHTML = viewWifi(); bindWifi(); break;
+    case 'security': view.innerHTML = viewSecurity(); bindSecurity(); break;
     case 'tests': view.innerHTML = viewTests(); bindTests(); break;
     case 'history': view.innerHTML = viewHistory(); bindHistory(); break;
     case 'router': view.innerHTML = viewRouter(); bindRouter(); break;
@@ -623,6 +624,180 @@ async function runTest(kind, label) {
     state.busy[kind] = false;
     render();
   }
+}
+
+/* ---------------- security ---------------- */
+
+const SEC_CHECKS = [
+  ['wps', 'WPS desactivado'],
+  ['admin', 'Contraseña del panel cambiada'],
+  ['firmware', 'Firmware actualizado'],
+  ['guest', 'Red de invitados para IoT'],
+  ['devices', 'Revisé los equipos conectados'],
+];
+
+const COMMON_PASSWORDS = [
+  '123456', '12345678', '123456789', '1234567890', 'password', 'contrasena', 'contraseña',
+  'qwerty', 'admin', 'clave', 'wifi', 'internet', 'claro', 'fiberhome', 'hogar', 'familia',
+  'casa', 'amor', 'teamo', 'colombia', 'bogota', 'medellin', 'cali', 'verano', 'invierno',
+  'primavera', 'otono', 'cumple', 'mama', 'papa', '000000', '111111', 'abc123', 'iloveyou',
+  'welcome', 'monkey', 'dragon', 'master', 'shadow', 'superman', 'football', 'princess',
+  'sunshine', 'letmein', 'passw0rd',
+];
+
+function readChecks() {
+  try { return JSON.parse(localStorage.getItem('netpilot.security') || '{}') || {}; } catch { return {}; }
+}
+function writeChecks(c) {
+  try { localStorage.setItem('netpilot.security', JSON.stringify(c)); } catch {}
+}
+
+function humanTime(seconds) {
+  if (!Number.isFinite(seconds)) return '—';
+  if (seconds < 1) return 'menos de un segundo';
+  if (seconds < 60) return `${Math.round(seconds)} s`;
+  if (seconds < 3600) return `${Math.round(seconds / 60)} min`;
+  if (seconds < 86400) return `${Math.round(seconds / 3600)} h`;
+  if (seconds < 31536000) return `${Math.round(seconds / 86400)} días`;
+  const years = seconds / 31536000;
+  if (years < 1000) return `${Math.round(years)} años`;
+  if (years < 1e6) return `${Math.round(years / 1000)} mil años`;
+  if (years < 1e9) return `${Math.round(years / 1e6)} millones de años`;
+  return 'más de mil millones de años';
+}
+
+function estimatePassword(pw) {
+  if (!pw) return null;
+  const low = pw.toLowerCase();
+  let charset = 0;
+  if (/[a-z]/.test(pw)) charset += 26;
+  if (/[A-Z]/.test(pw)) charset += 26;
+  if (/\d/.test(pw)) charset += 10;
+  if (/[^A-Za-z0-9]/.test(pw)) charset += 33;
+  let bits = pw.length * Math.log2(Math.max(charset, 1));
+  const notes = [];
+  if (COMMON_PASSWORDS.some((w) => low === w || (w.length >= 5 && low.includes(w)))) {
+    bits = Math.min(bits, 16);
+    notes.push('contiene una clave común');
+  }
+  if (/^\d+$/.test(pw)) { bits = Math.min(bits, pw.length * 3.3); notes.push('solo números'); }
+  if (/(.)\1{2,}/.test(pw)) { bits -= 8; notes.push('repeticiones'); }
+  if (/(0123|1234|2345|3456|4567|5678|6789|abcd|qwerty|asdf)/i.test(pw)) { bits -= 8; notes.push('secuencia predecible'); }
+  if (/(19|20)\d{2}/.test(pw)) { bits -= 6; notes.push('contiene un año'); }
+  if (pw.length < 8) { bits -= 10; notes.push('muy corta'); }
+  bits = Math.max(0, Math.round(bits));
+  const seconds = Math.pow(2, bits) / 1e6;
+  const verdict = bits < 40 ? ['débil', 'bad'] : bits < 60 ? ['aceptable', 'warn'] : bits < 80 ? ['fuerte', 'ok'] : ['muy fuerte', 'ok'];
+  return { bits, seconds, verdict, notes };
+}
+
+function viewSecurity() {
+  const s = state.data.security;
+  if (!s) return '<div class="empty">Sin datos de seguridad todavía. Pulsa «Escanear red».</div>';
+  const link = state.data.state.wifi?.link;
+  const checks = readChecks();
+  const done = SEC_CHECKS.filter(([k]) => checks[k]).length;
+  const color = s.score >= 85 ? 'var(--ok)' : s.score >= 65 ? 'var(--warn)' : 'var(--bad)';
+  const sev = {
+    high: ['Alto', 'bad'], medium: ['Medio', 'warn'], low: ['Bajo', 'info'],
+    info: ['Info', ''], ok: ['OK', 'ok'], unknown: ['—', ''],
+  };
+  const highs = s.findings.filter((f) => f.severity === 'high').length;
+  const meds = s.findings.filter((f) => f.severity === 'medium').length;
+
+  return `
+  <div class="section-head"><h2>Seguridad Wi-Fi</h2><p>${esc(s.method)}</p></div>
+
+  <div class="grid cols-2 section">
+    <div class="card"><div class="card-body" style="display:flex;gap:18px;align-items:center">
+      <div class="score-ring" style="--pct:${s.score};--col:${color};width:118px;height:118px;flex:0 0 auto">
+        <div class="score-inner"><div class="score-num" style="font-size:30px">${s.score}</div><div class="score-cap">de 100</div></div>
+      </div>
+      <div>
+        <div class="eyebrow">Nivel</div>
+        <div style="font-size:22px;font-weight:700;text-transform:capitalize">${esc(s.level)}</div>
+        <p class="note" style="margin-top:6px">${highs} alto(s) · ${meds} medio(s) · ${s.stats.neighbors} BSSID visibles</p>
+        <p class="note">Checklist: <span id="sec-check-count">${done}</span>/5 completado</p>
+      </div>
+    </div></div>
+
+    <div class="card"><div class="card-head"><div class="card-title">Tu red</div></div><div class="card-body">
+      <dl class="kv">
+        <dt>SSID</dt><dd>${esc(link?.ssid || '—')}</dd>
+        <dt>Autenticación</dt><dd>${esc(link?.auth || '—')}</dd>
+        <dt>Cifrado</dt><dd>${esc(link?.cipher || '—')}</dd>
+        <dt>Banda / canal</dt><dd>${esc(link?.band || '—')} · ${link?.channel ?? '—'}</dd>
+        <dt>WPA3</dt><dd>${/wpa3|sae/i.test(link?.auth || '') ? '<span class="badge ok">Sí</span>' : '<span class="badge warn">No anunciado</span>'}</dd>
+        <dt>PMF / WPS</dt><dd>No verificable desde Windows</dd>
+      </dl>
+    </div></div>
+  </div>
+
+  <div class="section-head"><h2>Hallazgos</h2><p>Pasivos, con evidencia</p></div>
+  <div class="list section">
+    ${s.findings.map((f) => {
+      const [label, cls] = sev[f.severity] || sev.info;
+      return `<div class="list-item">
+        <span class="badge ${cls}">${label}</span>
+        <div class="what">
+          <b>${esc(f.title)}</b>
+          <span>${esc(f.detail)}</span>
+          ${f.evidence ? `<span class="mono" style="font-size:11px;color:var(--muted-2)">${esc(f.evidence)}</span>` : ''}
+          ${f.action ? `<span style="color:var(--accent);font-size:12px">→ ${esc(f.action)}</span>` : ''}
+        </div>
+      </div>`;
+    }).join('')}
+  </div>
+
+  <div class="grid cols-2 section">
+    <div class="card">
+      <div class="card-head"><div class="card-title">Fortaleza de la clave</div><span class="badge">Local</span></div>
+      <div class="card-body">
+        <p class="note" style="margin-top:0">Se calcula en tu navegador. No se envía al agente, no se guarda y no se registra.</p>
+        <div class="toolbar" style="margin-top:10px">
+          <input class="input" id="pw-input" type="password" autocomplete="off" spellcheck="false" placeholder="Escribe una clave para estimarla" />
+          <button class="btn small" id="pw-toggle">Ver</button>
+        </div>
+        <div id="pw-out" class="note" style="margin-top:10px">Sin evaluar.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><div class="card-title">Checklist</div><span class="badge" id="sec-check-badge">${done}/5</span></div>
+      <div class="card-body" style="padding-top:6px">
+        ${SEC_CHECKS.map(([k, label]) => `<label class="check-row"><input type="checkbox" data-check="${k}" ${checks[k] ? 'checked' : ''}/><span>${esc(label)}</span></label>`).join('')}
+        <p class="note" style="margin-top:10px">Se guarda solo en este navegador (localStorage).</p>
+      </div>
+    </div>
+  </div>
+
+  <p class="note">Este módulo no captura handshakes, no hace deauth y no prueba contraseñas. Solo interpreta lo que el sistema ya reporta y te dice qué revisar.</p>`;
+}
+
+function bindSecurity() {
+  const input = $('#pw-input');
+  const out = $('#pw-out');
+  const update = () => {
+    const r = estimatePassword(input?.value || '');
+    if (!r) { out.innerHTML = 'Sin evaluar.'; return; }
+    out.innerHTML = `<span class="badge ${r.verdict[1]}">${esc(r.verdict[0])}</span> ~${r.bits} bits · ${esc(humanTime(r.seconds))} a 1 M intentos/s`
+      + (r.notes.length ? `<br><span style="color:var(--warn)">${r.notes.map(esc).join(' · ')}</span>` : '')
+      + `<br><span class="note">Estimación aproximada; los diccionarios reales pueden acortar el tiempo.</span>`;
+  };
+  input?.addEventListener('input', update);
+  $('#pw-toggle')?.addEventListener('click', () => {
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    $('#pw-toggle').textContent = show ? 'Ocultar' : 'Ver';
+  });
+  $$('#view [data-check]').forEach((cb) => cb.addEventListener('change', () => {
+    const c = readChecks();
+    c[cb.dataset.check] = cb.checked;
+    writeChecks(c);
+    const done = SEC_CHECKS.filter(([k]) => c[k]).length;
+    $('#sec-check-badge').textContent = `${done}/5`;
+    $('#sec-check-count').textContent = String(done);
+  }));
 }
 
 /* ---------------- history ---------------- */

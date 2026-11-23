@@ -12,6 +12,7 @@ import { inspectRouter } from './router.mjs';
 import { latencySuite, dnsSuite, speedTest } from './speed.mjs';
 import { Store } from './store.mjs';
 import { connectAccess, disconnectAccess, accessStatus, refreshAccess, setBlock } from './adapters.mjs';
+import { analyzeSecurity } from './security.mjs';
 
 // En Windows con IPv6 parcial, fetch puede fallar al resolver primero AAAA.
 dns.setDefaultResultOrder('ipv4first');
@@ -317,6 +318,7 @@ const server = http.createServer(async (req, res) => {
         network: publicNetwork(network),
         oui: { source: ouiSource(), note: 'Base OUI local' },
         access: accessStatus(),
+        security: analyzeSecurity({ wifi: store.state.wifi, router: store.state.router }),
         state: {
           devices: store.devices().map(publicDevice),
           alerts: store.state.alerts,

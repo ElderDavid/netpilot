@@ -36,6 +36,7 @@ El agente imprime ambas URLs al arrancar.
 | Velocidad y bufferbloat | ✅ | Cloudflare, flujos paralelos |
 | Router y ONT | ✅ | HTTP sin autenticación + traceroute |
 | Historial y comparación | ✅ | Gráficas, snapshots y exportación |
+| Seguridad Wi-Fi | ✅ | Análisis pasivo, AP gemelo, checklist y estimador de clave local |
 | Matriz de capacidades | ✅ | Estados con evidencia |
 | Bloqueo / QoS / SSID | 🟡 | Bloqueo solo en MikroTik conectado (address-list + regla forward). QoS y SSID, fase 2 |
 
@@ -59,6 +60,18 @@ En **Router → Acceso administrativo** puedes conectar un MikroTik (REST) u Ope
 - OpenWrt: solo lectura; el bloqueo requiere nft/shell y está declarado no disponible.
 - Las credenciales se usan **solo en memoria**, no se guardan ni se registran.
 - Estado honesto: **no verificado en hardware** todavía; la UI lo muestra así.
+
+## Seguridad Wi-Fi
+
+La pestaña **Seguridad** analiza en modo pasivo lo que ya reporta Windows:
+
+- Tipo de seguridad por BSSID (WPA2/WPA3, cifrado) y aviso si no hay WPA3.
+- **Posible AP gemelo**: tu SSID visto con otro fabricante o abierto (con la salvedad de que un repetidor legítimo puede coincidir).
+- Panel del router sin TLS y ONT expuesto.
+- **Checklist** manual (WPS, clave del panel, firmware, invitados, equipos) guardado solo en el navegador.
+- **Estimador de clave local**: se calcula en el navegador, no se envía al agente ni se guarda.
+
+No captura handshakes, no hace deauth y no prueba contraseñas. Solo interpreta lo que el sistema ya reporta.
 
 ## Seguridad y límites
 

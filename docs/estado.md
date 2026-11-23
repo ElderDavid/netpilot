@@ -92,6 +92,13 @@ Estados: `pendiente` · `en curso` · `bloqueado` · `hecho`
 - Ajustes de Lint: icono monocromo (Android 13+) y `dataExtractionRules` sin copia en la nube.
 - **No probado:** ejecución. No hay emulador (falta KVM). Falta instalarla en un teléfono real.
 
+### 2026-11-22 — Módulo Seguridad Wi-Fi (OpenCode) — hecho
+- `agent/security.mjs`: análisis pasivo de autenticación/cifrado, WPA3, posible AP gemelo (mismo SSID con otro fabricante o abierto), panel sin TLS, ONT expuesto y contexto de vecinos. Puntuación 0–100 con evidencia.
+- UI **Seguridad**: score, hallazgos con severidad, checklist manual (localStorage) y **estimador de clave en el navegador** (no se envía ni se guarda).
+- Corregido el parser de `netsh`: `auth` y `cipher` se perdían por el orden del spread; también afectaba a la vista Wi-Fi.
+- Probado: score 80 "aceptable", sin falso positivo de AP gemelo; estimador: `123456` 0 bits, `Verano2024!` 10 bits, frase de 5 palabras 165 bits.
+- **No ejecuta** capturas de handshake, deauth ni pruebas de contraseñas.
+
 ### 2026-11-22 — Tarea 3 verificada en dispositivo (OpenCode)
 - Dispositivo: Redmi `23049PCD8G` (`marble_global`), **Android 15 / API 35**, 1080×2400, por USB con depuración.
 - APK compilado en local con JDK 17 + SDK 35: `gradlew assembleDebug` → **BUILD SUCCESSFUL en 2m 07s**, 9,6 MB. Instalado con `adb install -r`.

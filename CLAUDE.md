@@ -26,6 +26,8 @@ agent/
   discovery.mjs  barrido ICMP/ARP, SSDP, fingerprint
   wifi.mjs       enlace, vecinos, canales, recomendación
   router.mjs     gateway, ONT, matriz de capacidades
+  adapters.mjs   MikroTik REST / OpenWrt ubus (lectura + bloqueo)
+  security.mjs   análisis pasivo de seguridad Wi-Fi
   speed.mjs      latencia, DNS, velocidad, bufferbloat
   store.mjs      estado local y fusión de inventario
   oui.mjs        base OUI (descarga IEEE, cache local)
